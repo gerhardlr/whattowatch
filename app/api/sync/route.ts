@@ -96,7 +96,14 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Vercel Cron invokes via GET with Authorization: Bearer <CRON_SECRET>
+  const secret = process.env.SYNC_SECRET;
+  const cronHeader = req.headers.get("authorization");
+  if (secret && cronHeader === `Bearer ${secret}`) {
+    return POST(req);
+  }
+
   const logs = await prisma.syncLog.findMany({
     orderBy: { startedAt: "desc" },
     take: 5,

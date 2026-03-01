@@ -10,7 +10,14 @@ function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.SYNC_SECRET;
   if (!secret) return true;
   const header = req.headers.get("x-sync-secret");
-  return header === secret;
+  // Also accept Vercel Cron's Authorization: Bearer header
+  const cronHeader = req.headers.get("authorization");
+  return header === secret || cronHeader === `Bearer ${secret}`;
+}
+
+// Vercel Cron invokes via GET — delegate to POST handler
+export async function GET(req: NextRequest) {
+  return POST(req);
 }
 
 export async function POST(req: NextRequest) {
