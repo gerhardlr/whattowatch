@@ -19,12 +19,11 @@ export async function POST(req: NextRequest) {
   }
 
   // Find titles that have an IMDB ID but no ratings yet
+  // Use isSet:false because Prisma+MongoDB stores unset nullable fields as missing, not null
   const titles = await prisma.title.findMany({
     where: {
-      imdbId: { not: null },
-      ratingsUpdatedAt: null,
+      ratingsUpdatedAt: { isSet: false },
     },
-    select: { id: true, imdbId: true },
     take: BATCH_SIZE,
     orderBy: { createdAt: "asc" },
   });
@@ -72,7 +71,7 @@ export async function POST(req: NextRequest) {
     enriched,
     failed,
     remaining: await prisma.title.count({
-      where: { imdbId: { not: null }, ratingsUpdatedAt: null },
+      where: { ratingsUpdatedAt: { isSet: false } },
     }),
   });
 }

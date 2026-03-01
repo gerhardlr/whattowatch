@@ -37,12 +37,12 @@ interface JWPage {
 }
 
 const TITLES_QUERY = `
-  query GetTitles($country: Country!, $language: Language!, $first: Int!, $after: String, $providers: [String!]) {
+  query GetTitles($country: Country!, $language: Language!, $first: Int!, $after: String, $packages: [String!]) {
     popularTitles(
       country: $country
       first: $first
       after: $after
-      filter: { providers: $providers }
+      filter: { packages: $packages }
     ) {
       edges {
         node {
@@ -88,7 +88,7 @@ async function fetchPage(
         language: LANGUAGE,
         first: 100,
         after: cursor ?? undefined,
-        providers,
+        packages: providers,
       },
     }),
     next: { revalidate: 0 },
@@ -119,9 +119,11 @@ function mapNode(
     year: node.content.originalReleaseYear ?? null,
     type: node.objectType === "SHOW" ? "show" : "movie",
     genres: node.content.genres?.map((g) => g.translation) ?? [],
-    posterUrl: node.content.posterUrl ?? null,
-    onNetflix: onNetflix || providerNames.includes("nfx"),
-    onPrime: onPrime || providerNames.includes("amp"),
+    posterUrl: node.content.posterUrl
+      ? `https://images.justwatch.com${node.content.posterUrl.replace("{format}", "jpg")}`
+      : null,
+    onNetflix: onNetflix || providerNames.includes("netflix"),
+    onPrime: onPrime || providerNames.includes("amazonprimevideo"),
   };
 }
 
@@ -129,8 +131,8 @@ export async function fetchAllTitles(): Promise<JWTitle[]> {
   const titleMap = new Map<string, JWTitle>();
 
   for (const { provider, flag } of [
-    { provider: "nfx", flag: "netflix" as const },
-    { provider: "amp", flag: "prime" as const },
+    { provider: "netflix", flag: "netflix" as const },
+    { provider: "amazonprimevideo", flag: "prime" as const },
   ]) {
     let cursor: string | null = null;
     let hasNext = true;
