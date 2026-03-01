@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Title {
+  id               Int       @id @default(autoincrement())
+  jwId             String    @unique
+  imdbId           String?
+  title            String
+  year             Int?
+  type             String
+  genres           String[]
+  posterUrl        String?
+
+  imdbRating       Float?
+  rtScore          Int?
+  metacritic       Int?
+  plot             String?
+  director         String?
+  actors           String?
+  runtime          String?
+  rated            String?
+
+  onNetflix        Boolean   @default(false)
+  onPrime          Boolean   @default(false)
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  ratingsUpdatedAt DateTime?
+
+  @@index([type])
+  @@index([rtScore])
+  @@index([imdbRating])
+  @@index([onNetflix, onPrime])
+}
+
+model SyncLog {
+  id           Int       @id @default(autoincrement())
+  status       String
+  titlesSynced Int       @default(0)
+  error        String?
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+}

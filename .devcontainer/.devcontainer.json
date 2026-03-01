@@ -1,0 +1,60 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/typescript-node
+{
+	"name": "Next.js Development with Claude Code",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": "."
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"dbaeumer.vscode-eslint",
+				"esbenp.prettier-vscode",
+				"bradlc.vscode-tailwindcss",
+				"anthropic.claude-code",
+				// Testing extensions
+				"orta.vscode-jest",
+				"firsttris.vscode-jest-runner",
+				"ryanluker.vscode-coverage-gutters"
+			],
+			"settings": {
+				"terminal.integrated.defaultProfile.linux": "bash",
+				"editor.formatOnSave": true,
+				"editor.defaultFormatter": "esbenp.prettier-vscode",
+				// Jest extension settings
+				"jest.autoRun": {
+					"watch": true,
+					"onSave": "test-src-file"
+				},
+				"jest.rootPath": ".",
+				"jest.testExplorer": {
+					"enabled": true
+				},
+				// Coverage Gutters settings
+				"coverage-gutters.coverageFileNames": [
+					"coverage/lcov.info"
+				],
+				"testExplorer.useNativeTesting": true
+			}
+		}
+	},
+	"runArgs": [
+		"--network=host"
+	],
+	"forwardPorts": [
+		3000
+	],
+	"portsAttributes": {
+		"3000": {
+			"label": "Next.js Dev Server",
+			"onAutoForward": "notify"
+		}
+	},
+	"postCreateCommand": "npm install",
+	"remoteUser": "root",
+	"workspaceFolder": "/workspace",
+	"mounts": [
+		"source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+	]
+}
