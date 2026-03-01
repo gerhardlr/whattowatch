@@ -14,7 +14,7 @@ import SyncIcon from "@mui/icons-material/Sync";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
 
 interface SyncLog {
-  id: number;
+  id: string;
   status: string;
   titlesSynced: number;
   error: string | null;
