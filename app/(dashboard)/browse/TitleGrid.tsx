@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
@@ -20,6 +21,7 @@ import Stack from "@mui/material/Stack";
 
 export interface TitleItem {
   id: string;
+  imdbId: string | null;
   title: string;
   year: number | null;
   type: string;
@@ -54,71 +56,116 @@ function rtColor(score: number): string {
   return "#757575";
 }
 
-function TitleCard({ item }: { item: TitleItem }) {
-  return (
-    <Card
-      sx={{
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        transition: "transform 0.15s",
-        "&:hover": { transform: "translateY(-4px)", boxShadow: 6 },
-      }}
-    >
-      <CardMedia
-        component="img"
-        image={
-          item.posterUrl ??
-          `https://via.placeholder.com/166x240?text=${encodeURIComponent(item.title)}`
-        }
-        alt={item.title}
-        sx={{ aspectRatio: "2/3", objectFit: "cover" }}
-      />
-      <CardContent sx={{ flexGrow: 1, pb: 0 }}>
-        <Typography variant="subtitle2" fontWeight={700} noWrap title={item.title}>
-          {item.title}
-        </Typography>
+function SynopsisTooltip({ item, children }: { item: TitleItem; children: React.ReactElement }) {
+  if (!item.plot) return children;
+  const content = (
+    <Box sx={{ maxWidth: 280, p: 0.5 }}>
+      <Typography variant="body2" sx={{ mb: item.director ? 0.75 : 0 }}>
+        {item.plot}
+      </Typography>
+      {item.director && (
         <Typography variant="caption" color="text.secondary">
-          {item.year ?? "—"} · {item.runtime ?? "—"}
+          Dir: {item.director}
         </Typography>
-        {item.rated && (
-          <Chip
-            label={item.rated}
-            size="small"
-            variant="outlined"
-            sx={{ ml: 0.5, height: 16, fontSize: 10 }}
-          />
-        )}
-      </CardContent>
-      <CardActions sx={{ pt: 0, flexWrap: "wrap", gap: 0.5, px: 1, pb: 1 }}>
-        {item.onNetflix && (
-          <Chip label="Netflix" size="small" sx={{ bgcolor: "#e50914", color: "#fff", fontWeight: 700 }} />
-        )}
-        {item.onPrime && (
-          <Chip label="Prime" size="small" sx={{ bgcolor: "#00a8e1", color: "#fff", fontWeight: 700 }} />
-        )}
-        {item.rtScore !== null ? (
-          <Tooltip title="Rotten Tomatoes">
+      )}
+    </Box>
+  );
+  return (
+    <Tooltip title={content} placement="top" arrow enterDelay={400} disableInteractive>
+      {children}
+    </Tooltip>
+  );
+}
+
+function TitleCard({ item }: { item: TitleItem }) {
+  const imdbUrl = item.imdbId ? `https://www.imdb.com/title/${item.imdbId}` : null;
+  const rtUrl = `https://www.rottentomatoes.com/search?search=${encodeURIComponent(item.title)}`;
+
+  return (
+    <SynopsisTooltip item={item}>
+      <Card
+        component={imdbUrl ? "a" : "div"}
+        href={imdbUrl ?? undefined}
+        target={imdbUrl ? "_blank" : undefined}
+        rel={imdbUrl ? "noopener noreferrer" : undefined}
+        sx={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          transition: "transform 0.15s",
+          textDecoration: "none",
+          color: "inherit",
+          cursor: imdbUrl ? "pointer" : "default",
+          "&:hover": { transform: "translateY(-4px)", boxShadow: 6 },
+        }}
+      >
+        <CardMedia
+          component="img"
+          image={
+            item.posterUrl ??
+            `https://via.placeholder.com/166x240?text=${encodeURIComponent(item.title)}`
+          }
+          alt={item.title}
+          sx={{ aspectRatio: "2/3", objectFit: "cover" }}
+        />
+        <CardContent sx={{ flexGrow: 1, pb: 0 }}>
+          <Typography variant="subtitle2" fontWeight={700} noWrap title={item.title}>
+            {item.title}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {item.year ?? "—"} · {item.runtime ?? "—"}
+          </Typography>
+          {item.rated && (
             <Chip
-              label={`${item.rtScore}%`}
+              label={item.rated}
               size="small"
-              sx={{ bgcolor: rtColor(item.rtScore), color: "#fff", fontWeight: 700 }}
+              variant="outlined"
+              sx={{ ml: 0.5, height: 16, fontSize: 10 }}
             />
-          </Tooltip>
-        ) : (
-          <Chip label="RT —" size="small" variant="outlined" />
-        )}
-        {item.imdbRating !== null && (
-          <Tooltip title="IMDb Rating">
-            <Chip
-              label={`★ ${item.imdbRating}`}
-              size="small"
-              sx={{ bgcolor: "#f5c518", color: "#000", fontWeight: 700 }}
-            />
-          </Tooltip>
-        )}
-      </CardActions>
-    </Card>
+          )}
+        </CardContent>
+        <CardActions sx={{ pt: 0, flexWrap: "wrap", gap: 0.5, px: 1, pb: 1 }}>
+          {item.onNetflix && (
+            <Chip label="Netflix" size="small" sx={{ bgcolor: "#e50914", color: "#fff", fontWeight: 700 }} />
+          )}
+          {item.onPrime && (
+            <Chip label="Prime" size="small" sx={{ bgcolor: "#00a8e1", color: "#fff", fontWeight: 700 }} />
+          )}
+          {item.rtScore !== null ? (
+            <Tooltip title="Open on Rotten Tomatoes">
+              <Chip
+                label={`${item.rtScore}%`}
+                size="small"
+                component="a"
+                href={rtUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                clickable
+                sx={{ bgcolor: rtColor(item.rtScore), color: "#fff", fontWeight: 700 }}
+              />
+            </Tooltip>
+          ) : (
+            <Chip label="RT —" size="small" variant="outlined" />
+          )}
+          {item.imdbRating !== null && imdbUrl && (
+            <Tooltip title="Open on IMDb">
+              <Chip
+                label={`★ ${item.imdbRating}`}
+                size="small"
+                component="a"
+                href={imdbUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                clickable
+                sx={{ bgcolor: "#f5c518", color: "#000", fontWeight: 700 }}
+              />
+            </Tooltip>
+          )}
+        </CardActions>
+      </Card>
+    </SynopsisTooltip>
   );
 }
 
