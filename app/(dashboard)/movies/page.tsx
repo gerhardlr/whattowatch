@@ -13,6 +13,7 @@ interface SearchParams {
   page?: string;
   q?: string;
   genre?: string;
+  sa?: string;
 }
 
 async function MoviesContent({ searchParams }: { searchParams: SearchParams }) {
@@ -21,10 +22,12 @@ async function MoviesContent({ searchParams }: { searchParams: SearchParams }) {
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10));
   const search = searchParams.q;
   const genre = searchParams.genre;
+  const saOnly = searchParams.sa === "1";
 
   const where: Prisma.TitleWhereInput = { type: "movie" };
   if (service === "netflix") where.onNetflix = true;
   else if (service === "prime") where.onPrime = true;
+  else if (saOnly) where.OR = [{ onNetflix: true }, { onPrime: true }];
   if (genre) where.genres = { has: genre };
   if (search) where.title = { contains: search, mode: "insensitive" };
 
@@ -52,6 +55,7 @@ async function MoviesContent({ searchParams }: { searchParams: SearchParams }) {
       sort={sort}
       search={search ?? undefined}
       fixedType="movie"
+      saOnly={saOnly}
     />
   );
 }

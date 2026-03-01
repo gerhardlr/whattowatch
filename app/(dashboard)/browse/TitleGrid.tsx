@@ -18,6 +18,8 @@ import InputLabel from "@mui/material/InputLabel";
 import TextField from "@mui/material/TextField";
 import Pagination from "@mui/material/Pagination";
 import Stack from "@mui/material/Stack";
+import Switch from "@mui/material/Switch";
+import FormControlLabel from "@mui/material/FormControlLabel";
 
 export interface TitleItem {
   id: string;
@@ -48,6 +50,7 @@ interface TitleGridProps {
   sort?: string;
   search?: string;
   fixedType?: "movie" | "show";
+  saOnly?: boolean;
 }
 
 function rtColor(score: number): string {
@@ -198,6 +201,7 @@ export default function TitleGrid({
   sort,
   search,
   fixedType,
+  saOnly,
 }: TitleGridProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -264,6 +268,23 @@ export default function TitleGrid({
             <MenuItem value="title">Title (A–Z)</MenuItem>
           </Select>
         </FormControl>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={saOnly ?? false}
+              onChange={(e) => {
+                const params = new URLSearchParams(searchParams.toString());
+                if (e.target.checked) params.set("sa", "1");
+                else params.delete("sa");
+                params.set("page", "1");
+                router.push(`${pathname}?${params.toString()}`);
+              }}
+              size="small"
+            />
+          }
+          label="Available in SA"
+          sx={{ alignSelf: "center", ml: 0 }}
+        />
         <Typography variant="body2" color="text.secondary" alignSelf="center">
           {total.toLocaleString()} titles
         </Typography>

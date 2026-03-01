@@ -14,6 +14,7 @@ interface SearchParams {
   sort?: string;
   page?: string;
   q?: string;
+  sa?: string;
 }
 
 async function BrowseContent({ searchParams }: { searchParams: SearchParams }) {
@@ -23,10 +24,12 @@ async function BrowseContent({ searchParams }: { searchParams: SearchParams }) {
   const sort = searchParams.sort ?? "rtScore";
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10));
   const search = searchParams.q;
+  const saOnly = searchParams.sa === "1";
 
   const where: Prisma.TitleWhereInput = {};
   if (service === "netflix") where.onNetflix = true;
   else if (service === "prime") where.onPrime = true;
+  else if (saOnly) where.OR = [{ onNetflix: true }, { onPrime: true }];
   if (type === "movie") where.type = "movie";
   else if (type === "show") where.type = "show";
   if (genre) where.genres = { has: genre };
@@ -63,6 +66,7 @@ async function BrowseContent({ searchParams }: { searchParams: SearchParams }) {
       service={service}
       sort={sort}
       search={search ?? undefined}
+      saOnly={saOnly}
     />
   );
 }
