@@ -126,10 +126,30 @@ function TitleCard({ item }: { item: TitleItem }) {
         </CardContent>
         <CardActions sx={{ pt: 0, flexWrap: "wrap", gap: 0.5, px: 1, pb: 1 }}>
           {item.onNetflix && (
-            <Chip label="Netflix" size="small" sx={{ bgcolor: "#e50914", color: "#fff", fontWeight: 700 }} />
+            <Chip
+              label="Netflix"
+              size="small"
+              component="a"
+              href={`https://www.netflix.com/search?q=${encodeURIComponent(item.title)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+              clickable
+              sx={{ bgcolor: "#e50914", color: "#fff", fontWeight: 700 }}
+            />
           )}
           {item.onPrime && (
-            <Chip label="Prime" size="small" sx={{ bgcolor: "#00a8e1", color: "#fff", fontWeight: 700 }} />
+            <Chip
+              label="Prime"
+              size="small"
+              component="a"
+              href={`https://www.primevideo.com/search/ref=atv_nb_sr?phrase=${encodeURIComponent(item.title)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+              clickable
+              sx={{ bgcolor: "#00a8e1", color: "#fff", fontWeight: 700 }}
+            />
           )}
           {item.rtScore !== null ? (
             <Tooltip title="Open on Rotten Tomatoes">
