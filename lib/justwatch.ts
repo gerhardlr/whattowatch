@@ -106,11 +106,9 @@ async function fetchPage(
   return json.data.popularTitles as JWPage;
 }
 
-function mapNode(
-  node: JWNode,
-  onNetflix: boolean,
-  onPrime: boolean
-): JWTitle {
+function mapNode(node: JWNode): JWTitle {
+  // Use the ZA-specific offers (already scoped by country in the query) as the
+  // source of truth — the packages filter is global, but offers are country-scoped.
   const providerNames = node.offers.map((o) => o.package.technicalName);
   return {
     jwId: node.id,
@@ -122,18 +120,15 @@ function mapNode(
     posterUrl: node.content.posterUrl
       ? `https://images.justwatch.com${node.content.posterUrl.replace("{format}", "jpg")}`
       : null,
-    onNetflix: onNetflix || providerNames.includes("netflix"),
-    onPrime: onPrime || providerNames.includes("amazonprimevideo"),
+    onNetflix: providerNames.includes("netflix"),
+    onPrime: providerNames.includes("amazonprimevideo"),
   };
 }
 
 export async function fetchAllTitles(): Promise<JWTitle[]> {
   const titleMap = new Map<string, JWTitle>();
 
-  for (const { provider, flag } of [
-    { provider: "netflix", flag: "netflix" as const },
-    { provider: "amazonprimevideo", flag: "prime" as const },
-  ]) {
+  for (const provider of ["netflix", "amazonprimevideo"]) {
     let cursor: string | null = null;
     let hasNext = true;
     let pageCount = 0;
@@ -143,17 +138,14 @@ export async function fetchAllTitles(): Promise<JWTitle[]> {
 
       for (const { node } of page.edges) {
         const existing = titleMap.get(node.id);
-        const isNetflix = flag === "netflix";
-        const isPrime = flag === "prime";
 
         if (existing) {
-          if (isNetflix) existing.onNetflix = true;
-          if (isPrime) existing.onPrime = true;
+          // Update flags from ZA offers on subsequent encounters
+          const providerNames = node.offers.map((o) => o.package.technicalName);
+          if (providerNames.includes("netflix")) existing.onNetflix = true;
+          if (providerNames.includes("amazonprimevideo")) existing.onPrime = true;
         } else {
-          titleMap.set(
-            node.id,
-            mapNode(node, isNetflix, isPrime)
-          );
+          titleMap.set(node.id, mapNode(node));
         }
       }
 
