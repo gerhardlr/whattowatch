@@ -10,6 +10,8 @@ import { FilterBar } from "@/components/FilterBar";
 
 export type { TitleItem } from "@/components/TitleCard";
 
+const RENT_BUY_SERVICES = new Set(["prime", "apple"]);
+
 interface TitleGridProps {
   titles: import("@/components/TitleCard").TitleItem[];
   total: number;
@@ -20,7 +22,8 @@ interface TitleGridProps {
   search?: string;
   fixedType?: "movie" | "show";
   saOnly?: boolean;
-  genre?: string;
+  includeRentBuy?: boolean;
+  genres?: string[];
   decade?: string;
   availableGenres: string[];
   minRt?: string;
@@ -39,7 +42,8 @@ export default function TitleGrid({
   search,
   fixedType,
   saOnly,
-  genre,
+  includeRentBuy,
+  genres,
   decade,
   availableGenres,
   minRt,
@@ -55,6 +59,10 @@ export default function TitleGrid({
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
+    // When changing service away from prime/apple, clear the rent/buy toggle
+    if (key === "service" && !RENT_BUY_SERVICES.has(value)) {
+      params.delete("rentbuy");
+    }
     if (key !== "page") params.set("page", "1");
     router.push(`${pathname}?${params.toString()}`);
   }
@@ -67,6 +75,14 @@ export default function TitleGrid({
     router.push(`${pathname}?${params.toString()}`);
   }
 
+  function handleIncludeRentBuyChange(checked: boolean) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (checked) params.set("rentbuy", "1");
+    else params.delete("rentbuy");
+    params.set("page", "1");
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
   return (
     <Box>
       <FilterBar
@@ -75,7 +91,8 @@ export default function TitleGrid({
         sort={sort}
         fixedType={fixedType}
         saOnly={saOnly}
-        genre={genre}
+        includeRentBuy={includeRentBuy}
+        genres={genres}
         decade={decade}
         availableGenres={availableGenres}
         minRt={minRt}
@@ -85,6 +102,7 @@ export default function TitleGrid({
         total={total}
         onParamChange={updateParam}
         onSaChange={handleSaChange}
+        onIncludeRentBuyChange={handleIncludeRentBuyChange}
       />
 
       <Grid container spacing={2}>

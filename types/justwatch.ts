@@ -13,4 +13,8 @@ export interface JWTitle {
   posterUrl: string | null;
   onNetflix: boolean;
   onPrime: boolean;
+  onPrimePay: boolean;
+  onDisney: boolean;
+  onApple: boolean;
+  onApplePay: boolean;
 }

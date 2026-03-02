@@ -2,6 +2,7 @@
 
 import type { TitleItem } from "@/types";
 import { rtColor } from "./rtColor";
+import { DISNEY_ENABLED } from "@/lib/features";
 import Link from "next/link";
 import Card from "@mui/material/Card";
 import CardMedia from "@mui/material/CardMedia";
@@ -66,6 +67,36 @@ export function TitleCard({ item }: { item: TitleItem }) {
             label="Prime"
             size="small"
             sx={{ bgcolor: "#00a8e1", color: "#fff", fontWeight: 700 }}
+          />
+        )}
+        {item.onPrimePay && !item.onPrime && (
+          <Chip
+            label="Prime (Rent)"
+            size="small"
+            variant="outlined"
+            sx={{ borderColor: "#00a8e1", color: "#00a8e1", fontWeight: 700 }}
+          />
+        )}
+        {DISNEY_ENABLED && item.onDisney && (
+          <Chip
+            label="Disney+"
+            size="small"
+            sx={{ bgcolor: "#113ccf", color: "#fff", fontWeight: 700 }}
+          />
+        )}
+        {item.onApple && (
+          <Chip
+            label="Apple TV+"
+            size="small"
+            sx={{ bgcolor: "#1d1d1f", color: "#fff", fontWeight: 700 }}
+          />
+        )}
+        {item.onApplePay && !item.onApple && (
+          <Chip
+            label="Apple TV+ (Rent)"
+            size="small"
+            variant="outlined"
+            sx={{ borderColor: "#1d1d1f", color: "#1d1d1f", fontWeight: 700 }}
           />
         )}
         {item.rtScore !== null ? (

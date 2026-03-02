@@ -17,6 +17,7 @@ interface JWNode {
     externalIds: { imdbId: string | null };
   };
   offers: Array<{
+    monetizationType: string;
     package: { technicalName: string };
   }>;
 }
@@ -50,6 +51,7 @@ const TITLES_QUERY = `
             }
           }
           offers(country: $country, platform: WEB) {
+            monetizationType
             package {
               technicalName
             }
@@ -96,10 +98,20 @@ async function fetchPage(
   return json.data.popularTitles as JWPage;
 }
 
+function providersByType(
+  offers: JWNode["offers"],
+  types: string[]
+): Set<string> {
+  return new Set(
+    offers
+      .filter((o) => types.includes(o.monetizationType))
+      .map((o) => o.package.technicalName)
+  );
+}
+
 function mapNode(node: JWNode): JWTitle {
-  // Use the ZA-specific offers (already scoped by country in the query) as the
-  // source of truth — the packages filter is global, but offers are country-scoped.
-  const providerNames = node.offers.map((o) => o.package.technicalName);
+  const free = providersByType(node.offers, ["FLATRATE"]);
+  const pay = providersByType(node.offers, ["RENT", "BUY"]);
   return {
     jwId: node.id,
     imdbId: node.content.externalIds?.imdbId ?? null,
@@ -110,15 +122,19 @@ function mapNode(node: JWNode): JWTitle {
     posterUrl: node.content.posterUrl
       ? `https://images.justwatch.com${node.content.posterUrl.replace("{format}", "jpg")}`
       : null,
-    onNetflix: providerNames.includes("netflix"),
-    onPrime: providerNames.includes("amazonprimevideo"),
+    onNetflix: free.has("netflix"),
+    onPrime: free.has("amazonprimevideo"),
+    onPrimePay: pay.has("amazonprimevideo"),
+    onDisney: free.has("disneyplus"),
+    onApple: free.has("appletvplus"),
+    onApplePay: pay.has("appletvplus"),
   };
 }
 
 export async function fetchAllTitles(): Promise<JWTitle[]> {
   const titleMap = new Map<string, JWTitle>();
 
-  for (const provider of ["netflix", "amazonprimevideo"]) {
+  for (const provider of ["netflix", "amazonprimevideo", "appletvplus"]) {
     let cursor: string | null = null;
     let hasNext = true;
     let pageCount = 0;
@@ -131,9 +147,14 @@ export async function fetchAllTitles(): Promise<JWTitle[]> {
 
         if (existing) {
           // Update flags from ZA offers on subsequent encounters
-          const providerNames = node.offers.map((o) => o.package.technicalName);
-          if (providerNames.includes("netflix")) existing.onNetflix = true;
-          if (providerNames.includes("amazonprimevideo")) existing.onPrime = true;
+          const free = providersByType(node.offers, ["FLATRATE"]);
+          const pay = providersByType(node.offers, ["RENT", "BUY"]);
+          if (free.has("netflix")) existing.onNetflix = true;
+          if (free.has("amazonprimevideo")) existing.onPrime = true;
+          if (pay.has("amazonprimevideo")) existing.onPrimePay = true;
+          if (free.has("disneyplus")) existing.onDisney = true;
+          if (free.has("appletvplus")) existing.onApple = true;
+          if (pay.has("appletvplus")) existing.onApplePay = true;
         } else {
           titleMap.set(node.id, mapNode(node));
         }

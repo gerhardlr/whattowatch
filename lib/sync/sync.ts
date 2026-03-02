@@ -38,6 +38,10 @@ export async function syncTitles(): Promise<{ titlesSynced: number; syncId: stri
           posterUrl: t.posterUrl,
           onNetflix: t.onNetflix,
           onPrime: t.onPrime,
+          onPrimePay: t.onPrimePay,
+          onDisney: t.onDisney,
+          onApple: t.onApple,
+          onApplePay: t.onApplePay,
         },
         update: {
           title: t.title,
@@ -46,6 +50,10 @@ export async function syncTitles(): Promise<{ titlesSynced: number; syncId: stri
           posterUrl: t.posterUrl,
           onNetflix: t.onNetflix,
           onPrime: t.onPrime,
+          onPrimePay: t.onPrimePay,
+          onDisney: t.onDisney,
+          onApple: t.onApple,
+          onApplePay: t.onApplePay,
           // Don't overwrite imdbId once set
           ...(t.imdbId ? { imdbId: t.imdbId } : {}),
         },

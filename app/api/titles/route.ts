@@ -9,22 +9,32 @@ export async function GET(req: NextRequest) {
 
   const service = searchParams.get("service") ?? "all";
   const type = searchParams.get("type") ?? "all";
-  const genre = searchParams.get("genre");
+  const genresParam = searchParams.get("genres");
+  const selectedGenres = genresParam ? genresParam.split(",").filter(Boolean) : [];
   const sort = searchParams.get("sort") ?? "rtScore";
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
   const search = searchParams.get("q");
+  const includeRentBuy = searchParams.get("rentbuy") === "1";
 
   const where: Prisma.TitleWhereInput = {};
 
   if (service === "netflix") where.onNetflix = true;
-  else if (service === "prime") where.onPrime = true;
-  else if (service === "both") { where.onNetflix = true; where.onPrime = true; }
+  else if (service === "prime") {
+    where.OR = includeRentBuy
+      ? [{ onPrime: true }, { onPrimePay: true }]
+      : [{ onPrime: true }];
+  } else if (service === "disney") where.onDisney = true;
+  else if (service === "apple") {
+    where.OR = includeRentBuy
+      ? [{ onApple: true }, { onApplePay: true }]
+      : [{ onApple: true }];
+  }
 
   if (type === "movie") where.type = "movie";
   else if (type === "show") where.type = "show";
 
-  if (genre) {
-    where.genres = { has: genre };
+  if (selectedGenres.length > 0) {
+    where.genres = { hasSome: selectedGenres };
   }
 
   if (search) {

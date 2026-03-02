@@ -9,7 +9,10 @@
     "lint": "eslint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "sync": "node scripts/sync.mjs",
+    "sync:prod": "node scripts/sync.mjs https://whattowatch-umber.vercel.app",
+    "sync:reset": "node scripts/reset-sync.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

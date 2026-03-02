@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSimilarTitles } from "@/lib/similar";
-import { TitleDetailClient } from "./TitleDetailClient";
+import { TitleDetailClient } from "@/components/TitleDetailClient";
 import type { TitleItem } from "@/types";
 
 export default async function TitleDetailPage({

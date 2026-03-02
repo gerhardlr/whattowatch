@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { DISNEY_ENABLED } from "@/lib/features";
 import TitleGrid from "../browse/TitleGrid";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
@@ -12,13 +13,14 @@ interface SearchParams {
   sort?: string;
   page?: string;
   q?: string;
-  genre?: string;
+  genres?: string;
   decade?: string;
   minRt?: string;
   minImdb?: string;
   director?: string;
   actor?: string;
   sa?: string;
+  rentbuy?: string;
 }
 
 async function SeriesContent({ searchParams }: { searchParams: SearchParams }) {
@@ -26,19 +28,30 @@ async function SeriesContent({ searchParams }: { searchParams: SearchParams }) {
   const sort = searchParams.sort ?? "rtScore";
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10));
   const search = searchParams.q;
-  const genre = searchParams.genre;
+  const selectedGenres = searchParams.genres ? searchParams.genres.split(",").filter(Boolean) : [];
   const decade = searchParams.decade;
   const minRt = searchParams.minRt;
   const minImdb = searchParams.minImdb;
   const director = searchParams.director;
   const actor = searchParams.actor;
   const saOnly = searchParams.sa === "1";
+  const includeRentBuy = searchParams.rentbuy === "1";
 
   const where: Prisma.TitleWhereInput = { type: "show" };
   if (service === "netflix") where.onNetflix = true;
-  else if (service === "prime") where.onPrime = true;
-  else if (saOnly) where.OR = [{ onNetflix: true }, { onPrime: true }];
-  if (genre) where.genres = { has: genre };
+  else if (service === "prime") {
+    where.OR = includeRentBuy
+      ? [{ onPrime: true }, { onPrimePay: true }]
+      : [{ onPrime: true }];
+  } else if (service === "disney") where.onDisney = true;
+  else if (service === "apple") {
+    where.OR = includeRentBuy
+      ? [{ onApple: true }, { onApplePay: true }]
+      : [{ onApple: true }];
+  } else if (saOnly) {
+    where.OR = [{ onNetflix: true }, { onPrime: true }, ...(DISNEY_ENABLED ? [{ onDisney: true }] : []), { onApple: true }];
+  }
+  if (selectedGenres.length > 0) where.genres = { hasSome: selectedGenres };
   if (decade) {
     if (decade === "classic") {
       where.year = { lt: 1980 };
@@ -80,7 +93,8 @@ async function SeriesContent({ searchParams }: { searchParams: SearchParams }) {
       search={search ?? undefined}
       fixedType="show"
       saOnly={saOnly}
-      genre={genre}
+      includeRentBuy={includeRentBuy}
+      genres={selectedGenres.length > 0 ? selectedGenres : undefined}
       decade={decade}
       availableGenres={availableGenres}
       minRt={minRt}

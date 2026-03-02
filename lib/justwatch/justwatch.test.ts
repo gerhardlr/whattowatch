@@ -4,7 +4,9 @@
 
 import { fetchAllTitles } from "./justwatch";
 
-// Minimal JustWatch node factory
+type OfferOverride = { technicalName: string; monetizationType?: string };
+
+// Minimal JustWatch node factory — offers default to FLATRATE (subscription included)
 function makeNode(overrides: {
   id?: string;
   objectType?: string;
@@ -13,7 +15,7 @@ function makeNode(overrides: {
   posterUrl?: string | null;
   imdbId?: string | null;
   genres?: string[];
-  offers?: Array<{ package: { technicalName: string } }>;
+  offers?: OfferOverride[];
 }) {
   return {
     id: overrides.id ?? "jw-1",
@@ -25,7 +27,10 @@ function makeNode(overrides: {
       genres: (overrides.genres ?? []).map((g) => ({ translation: g })),
       externalIds: { imdbId: overrides.imdbId ?? null },
     },
-    offers: overrides.offers ?? [],
+    offers: (overrides.offers ?? []).map((o) => ({
+      monetizationType: o.monetizationType ?? "FLATRATE",
+      package: { technicalName: o.technicalName },
+    })),
   };
 }
 
@@ -56,8 +61,7 @@ describe("fetchAllTitles", () => {
   afterEach(() => jest.restoreAllMocks());
 
   it("returns an empty array when no titles exist", async () => {
-    // Two providers, each with an empty page
-    mockFetch(makePage([]), makePage([]));
+    mockFetch(makePage([]), makePage([]), makePage([]), makePage([]));
     const result = await fetchAllTitles();
     expect(result).toEqual([]);
   });
@@ -70,9 +74,9 @@ describe("fetchAllTitles", () => {
       year: 2010,
       imdbId: "tt1375666",
       genres: ["Science-Fiction", "Action"],
-      offers: [{ package: { technicalName: "netflix" } }],
+      offers: [{ technicalName: "netflix" }],
     });
-    mockFetch(makePage([node]), makePage([]));
+    mockFetch(makePage([node]));
     const [title] = await fetchAllTitles();
     expect(title).toMatchObject({
       jwId: "jw-99",
@@ -88,45 +92,116 @@ describe("fetchAllTitles", () => {
 
   it("maps a SHOW node to type='show'", async () => {
     const node = makeNode({ objectType: "SHOW" });
-    mockFetch(makePage([node]), makePage([]));
+    mockFetch(makePage([node]));
     const [title] = await fetchAllTitles();
     expect(title.type).toBe("show");
   });
 
   it("builds the full poster URL and replaces {format}", async () => {
     const node = makeNode({ posterUrl: "/poster/123/s166/name.{format}" });
-    mockFetch(makePage([node]), makePage([]));
+    mockFetch(makePage([node]));
     const [title] = await fetchAllTitles();
     expect(title.posterUrl).toBe("https://images.justwatch.com/poster/123/s166/name.jpg");
   });
 
   it("returns null posterUrl when node has no poster", async () => {
     const node = makeNode({ posterUrl: null });
-    mockFetch(makePage([node]), makePage([]));
+    mockFetch(makePage([node]));
     const [title] = await fetchAllTitles();
     expect(title.posterUrl).toBeNull();
   });
 
-  it("derives onNetflix from ZA offers, not query loop", async () => {
-    const node = makeNode({ offers: [{ package: { technicalName: "netflix" } }] });
-    mockFetch(makePage([node]), makePage([]));
+  // ── Subscription (FLATRATE) flags ───────────────────────────────────────────
+
+  it("sets onNetflix=true for a FLATRATE netflix offer", async () => {
+    const node = makeNode({ offers: [{ technicalName: "netflix" }] });
+    mockFetch(makePage([node]));
     const [title] = await fetchAllTitles();
     expect(title.onNetflix).toBe(true);
     expect(title.onPrime).toBe(false);
   });
 
-  it("derives onPrime from ZA offers", async () => {
-    const node = makeNode({ offers: [{ package: { technicalName: "amazonprimevideo" } }] });
-    mockFetch(makePage([node]), makePage([]));
+  it("sets onPrime=true for a FLATRATE amazonprimevideo offer", async () => {
+    const node = makeNode({ offers: [{ technicalName: "amazonprimevideo" }] });
+    mockFetch(makePage([node]));
     const [title] = await fetchAllTitles();
     expect(title.onPrime).toBe(true);
     expect(title.onNetflix).toBe(false);
   });
 
-  it("deduplicates titles that appear on both providers and merges flags", async () => {
-    const netflixNode = makeNode({ id: "jw-1", offers: [{ package: { technicalName: "netflix" } }] });
-    const primeNode = makeNode({ id: "jw-1", offers: [{ package: { technicalName: "amazonprimevideo" } }] });
-    // First provider page returns Netflix node, second returns Prime node for same id
+  it("sets onDisney=true for a FLATRATE disneyplus offer", async () => {
+    const node = makeNode({ offers: [{ technicalName: "disneyplus" }] });
+    mockFetch(makePage([node]));
+    const [title] = await fetchAllTitles();
+    expect(title.onDisney).toBe(true);
+  });
+
+  it("sets onApple=true for a FLATRATE appletvplus offer", async () => {
+    const node = makeNode({ offers: [{ technicalName: "appletvplus" }] });
+    mockFetch(makePage([node]));
+    const [title] = await fetchAllTitles();
+    expect(title.onApple).toBe(true);
+  });
+
+  // ── Pay (RENT/BUY) flags ────────────────────────────────────────────────────
+
+  it("sets onPrimePay=true for a RENT amazonprimevideo offer", async () => {
+    const node = makeNode({
+      offers: [{ technicalName: "amazonprimevideo", monetizationType: "RENT" }],
+    });
+    mockFetch(makePage([node]));
+    const [title] = await fetchAllTitles();
+    expect(title.onPrimePay).toBe(true);
+    expect(title.onPrime).toBe(false);
+  });
+
+  it("sets onPrimePay=true for a BUY amazonprimevideo offer", async () => {
+    const node = makeNode({
+      offers: [{ technicalName: "amazonprimevideo", monetizationType: "BUY" }],
+    });
+    mockFetch(makePage([node]));
+    const [title] = await fetchAllTitles();
+    expect(title.onPrimePay).toBe(true);
+    expect(title.onPrime).toBe(false);
+  });
+
+  it("sets onApplePay=true for a RENT appletvplus offer", async () => {
+    const node = makeNode({
+      offers: [{ technicalName: "appletvplus", monetizationType: "RENT" }],
+    });
+    mockFetch(makePage([node]));
+    const [title] = await fetchAllTitles();
+    expect(title.onApplePay).toBe(true);
+    expect(title.onApple).toBe(false);
+  });
+
+  it("does not set onPrime=true for a RENT offer (flatrate only)", async () => {
+    const node = makeNode({
+      offers: [{ technicalName: "amazonprimevideo", monetizationType: "RENT" }],
+    });
+    mockFetch(makePage([node]));
+    const [title] = await fetchAllTitles();
+    expect(title.onPrime).toBe(false);
+  });
+
+  it("sets both onPrime and onPrimePay when title has FLATRATE and RENT offers", async () => {
+    const node = makeNode({
+      offers: [
+        { technicalName: "amazonprimevideo", monetizationType: "FLATRATE" },
+        { technicalName: "amazonprimevideo", monetizationType: "RENT" },
+      ],
+    });
+    mockFetch(makePage([node]));
+    const [title] = await fetchAllTitles();
+    expect(title.onPrime).toBe(true);
+    expect(title.onPrimePay).toBe(true);
+  });
+
+  // ── Deduplication / flag merging ────────────────────────────────────────────
+
+  it("deduplicates titles across providers and merges flatrate flags", async () => {
+    const netflixNode = makeNode({ id: "jw-1", offers: [{ technicalName: "netflix" }] });
+    const primeNode = makeNode({ id: "jw-1", offers: [{ technicalName: "amazonprimevideo" }] });
     mockFetch(makePage([netflixNode]), makePage([primeNode]));
     const results = await fetchAllTitles();
     expect(results).toHaveLength(1);
@@ -134,10 +209,24 @@ describe("fetchAllTitles", () => {
     expect(results[0].onPrime).toBe(true);
   });
 
+  it("merges pay flags on deduplication", async () => {
+    const primeNode = makeNode({ id: "jw-1", offers: [{ technicalName: "amazonprimevideo" }] });
+    const primePayNode = makeNode({
+      id: "jw-1",
+      offers: [{ technicalName: "amazonprimevideo", monetizationType: "RENT" }],
+    });
+    mockFetch(makePage([primeNode]), makePage([primePayNode]));
+    const results = await fetchAllTitles();
+    expect(results).toHaveLength(1);
+    expect(results[0].onPrime).toBe(true);
+    expect(results[0].onPrimePay).toBe(true);
+  });
+
+  // ── Pagination ──────────────────────────────────────────────────────────────
+
   it("paginates through multiple pages", async () => {
     const node1 = makeNode({ id: "jw-1" });
     const node2 = makeNode({ id: "jw-2" });
-    // Netflix: 2 pages; Prime: 1 empty page
     mockFetch(
       makePage([node1], true, "cursor-1"),
       makePage([node2], false),
@@ -146,6 +235,8 @@ describe("fetchAllTitles", () => {
     const results = await fetchAllTitles();
     expect(results).toHaveLength(2);
   });
+
+  // ── Error handling ──────────────────────────────────────────────────────────
 
   it("throws when the API returns an HTTP error", async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500, statusText: "Internal Server Error" }) as jest.Mock;

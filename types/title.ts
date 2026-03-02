@@ -21,5 +21,9 @@ export interface TitleItem {
   actors: string | null;
   onNetflix: boolean;
   onPrime: boolean;
+  onPrimePay: boolean;
+  onDisney: boolean;
+  onApple: boolean;
+  onApplePay: boolean;
   ratingsUpdatedAt: string | null;
 }

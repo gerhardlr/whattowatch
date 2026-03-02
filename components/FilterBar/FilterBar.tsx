@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { DISNEY_ENABLED } from "@/lib/features";
 import Paper from "@mui/material/Paper";
 import Grid from "@mui/material/Grid";
 import TextField from "@mui/material/TextField";
@@ -7,6 +9,9 @@ import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import Checkbox from "@mui/material/Checkbox";
+import ListItemText from "@mui/material/ListItemText";
+import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
@@ -27,7 +32,8 @@ export interface FilterBarProps {
   sort?: string;
   fixedType?: "movie" | "show";
   saOnly?: boolean;
-  genre?: string;
+  includeRentBuy?: boolean;
+  genres?: string[];
   decade?: string;
   availableGenres: string[];
   minRt?: string;
@@ -37,7 +43,10 @@ export interface FilterBarProps {
   total: number;
   onParamChange: (key: string, value: string) => void;
   onSaChange: (checked: boolean) => void;
+  onIncludeRentBuyChange: (checked: boolean) => void;
 }
+
+const RENT_BUY_SERVICES = new Set(["prime", "apple"]);
 
 export function FilterBar({
   search,
@@ -45,7 +54,8 @@ export function FilterBar({
   sort,
   fixedType,
   saOnly,
-  genre,
+  includeRentBuy,
+  genres,
   decade,
   availableGenres,
   minRt,
@@ -55,7 +65,22 @@ export function FilterBar({
   total,
   onParamChange,
   onSaChange,
+  onIncludeRentBuyChange,
 }: FilterBarProps) {
+  const effectiveGenres =
+    genres && genres.length > 0 && genres.length < availableGenres.length
+      ? genres
+      : availableGenres;
+
+  const [selectedGenres, setSelectedGenres] = useState<string[]>(effectiveGenres);
+
+  // Sync local state when the genres URL param changes (navigation)
+  const genresKey = genres ? genres.join(",") : "";
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setSelectedGenres(effectiveGenres); }, [genresKey]);
+
+  const allGenresSelected = selectedGenres.length === availableGenres.length;
+
   return (
     <Paper elevation={1} sx={{ p: 2, mb: 3 }}>
       <Grid container spacing={2} alignItems="center">
@@ -83,6 +108,8 @@ export function FilterBar({
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="netflix">Netflix</MenuItem>
               <MenuItem value="prime">Prime Video</MenuItem>
+              {DISNEY_ENABLED && <MenuItem value="disney">Disney+</MenuItem>}
+              <MenuItem value="apple">Apple TV+</MenuItem>
             </Select>
           </FormControl>
         </Grid>
@@ -122,15 +149,56 @@ export function FilterBar({
         {availableGenres.length > 0 && (
           <Grid size={{ xs: 6, sm: 4, md: 2 }}>
             <FormControl fullWidth size="small">
-              <InputLabel>Genre</InputLabel>
+              <InputLabel shrink>Genre</InputLabel>
               <Select
-                value={genre ?? ""}
+                multiple
+                displayEmpty
+                size="small"
                 label="Genre"
-                onChange={(e) => onParamChange("genre", e.target.value)}
+                notched
+                value={selectedGenres}
+                onChange={(e) => {
+                  const val = e.target.value as string[];
+                  setSelectedGenres(val);
+                  if (val.length === 0 || val.length === availableGenres.length) {
+                    onParamChange("genres", "");
+                  } else {
+                    onParamChange("genres", val.join(","));
+                  }
+                }}
+                renderValue={(selected) =>
+                  selected.length === 0
+                    ? "No genres"
+                    : selected.length === availableGenres.length
+                    ? "All Genres"
+                    : `${selected.length} genre${selected.length !== 1 ? "s" : ""}`
+                }
               >
-                <MenuItem value="">All Genres</MenuItem>
+                <MenuItem
+                  dense
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (allGenresSelected) {
+                      setSelectedGenres([]);
+                    } else {
+                      setSelectedGenres(availableGenres);
+                      onParamChange("genres", "");
+                    }
+                  }}
+                >
+                  <Checkbox
+                    size="small"
+                    checked={allGenresSelected}
+                    indeterminate={selectedGenres.length > 0 && !allGenresSelected}
+                  />
+                  <ListItemText primary="Select All" />
+                </MenuItem>
+                <Divider />
                 {availableGenres.map((g) => (
-                  <MenuItem key={g} value={g}>{g}</MenuItem>
+                  <MenuItem key={g} value={g} dense>
+                    <Checkbox size="small" checked={selectedGenres.includes(g)} />
+                    <ListItemText primary={g} />
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -211,9 +279,9 @@ export function FilterBar({
           />
         </Grid>
 
-        {/* Row 3: SA toggle + count */}
+        {/* Row 3: SA toggle + Rent/Buy toggle + count */}
         <Grid size={12}>
-          <Box display="flex" alignItems="center" gap={2}>
+          <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
             <FormControlLabel
               control={
                 <Switch
@@ -224,6 +292,18 @@ export function FilterBar({
               }
               label="Available in SA"
             />
+            {RENT_BUY_SERVICES.has(service ?? "") && (
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={includeRentBuy ?? false}
+                    onChange={(e) => onIncludeRentBuyChange(e.target.checked)}
+                    size="small"
+                  />
+                }
+                label="Include Rent/Buy"
+              />
+            )}
             <Typography variant="body2" color="text.secondary">
               {total.toLocaleString()} titles
             </Typography>

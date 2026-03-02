@@ -1,0 +1,1 @@
+export { TitleDetailClient } from "./TitleDetailClient";

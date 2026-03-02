@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { DISNEY_ENABLED } from "@/lib/features";
 import TitleGrid from "./TitleGrid";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
@@ -10,7 +11,7 @@ const PAGE_SIZE = 48;
 interface SearchParams {
   service?: string;
   type?: string;
-  genre?: string;
+  genres?: string;
   decade?: string;
   minRt?: string;
   minImdb?: string;
@@ -20,12 +21,14 @@ interface SearchParams {
   page?: string;
   q?: string;
   sa?: string;
+  rentbuy?: string;
 }
 
 async function BrowseContent({ searchParams }: { searchParams: SearchParams }) {
   const service = searchParams.service ?? "all";
   const type = searchParams.type ?? "all";
-  const genre = searchParams.genre;
+  const genresParam = searchParams.genres;
+  const selectedGenres = genresParam ? genresParam.split(",").filter(Boolean) : [];
   const decade = searchParams.decade;
   const minRt = searchParams.minRt;
   const minImdb = searchParams.minImdb;
@@ -35,14 +38,25 @@ async function BrowseContent({ searchParams }: { searchParams: SearchParams }) {
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10));
   const search = searchParams.q;
   const saOnly = searchParams.sa === "1";
+  const includeRentBuy = searchParams.rentbuy === "1";
 
   const where: Prisma.TitleWhereInput = {};
   if (service === "netflix") where.onNetflix = true;
-  else if (service === "prime") where.onPrime = true;
-  else if (saOnly) where.OR = [{ onNetflix: true }, { onPrime: true }];
+  else if (service === "prime") {
+    where.OR = includeRentBuy
+      ? [{ onPrime: true }, { onPrimePay: true }]
+      : [{ onPrime: true }];
+  } else if (service === "disney") where.onDisney = true;
+  else if (service === "apple") {
+    where.OR = includeRentBuy
+      ? [{ onApple: true }, { onApplePay: true }]
+      : [{ onApple: true }];
+  } else if (saOnly) {
+    where.OR = [{ onNetflix: true }, { onPrime: true }, ...(DISNEY_ENABLED ? [{ onDisney: true }] : []), { onApple: true }];
+  }
   if (type === "movie") where.type = "movie";
   else if (type === "show") where.type = "show";
-  if (genre) where.genres = { has: genre };
+  if (selectedGenres.length > 0) where.genres = { hasSome: selectedGenres };
   if (decade) {
     if (decade === "classic") {
       where.year = { lt: 1980 };
@@ -91,7 +105,8 @@ async function BrowseContent({ searchParams }: { searchParams: SearchParams }) {
       sort={sort}
       search={search ?? undefined}
       saOnly={saOnly}
-      genre={genre}
+      includeRentBuy={includeRentBuy}
+      genres={selectedGenres.length > 0 ? selectedGenres : undefined}
       decade={decade}
       availableGenres={availableGenres}
       minRt={minRt}

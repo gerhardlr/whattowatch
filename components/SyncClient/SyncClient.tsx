@@ -12,6 +12,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Alert from "@mui/material/Alert";
 import SyncIcon from "@mui/icons-material/Sync";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
+import { syncCatalog, fetchTotalTitles, enrichRatings } from "@/lib/syncClient";
 
 interface SyncLog {
   id: string;
@@ -35,7 +36,7 @@ interface SyncClientProps {
   stats: Stats;
 }
 
-export default function SyncClient({ lastSync: initial, stats: initialStats }: SyncClientProps) {
+export function SyncClient({ lastSync: initial, stats: initialStats }: SyncClientProps) {
   const [syncing, setSyncing] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [result, setResult] = useState<{ ok?: boolean; error?: string; message?: string } | null>(null);
@@ -46,22 +47,13 @@ export default function SyncClient({ lastSync: initial, stats: initialStats }: S
     setSyncing(true);
     setResult(null);
     try {
-      const res = await fetch("/api/sync", { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        setResult({ ok: true, message: `Synced ${data.titlesSynced} titles successfully.` });
-        setLastSync({ ...data, startedAt: new Date().toISOString(), completedAt: new Date().toISOString() });
-        // Refresh stats
-        const statsRes = await fetch("/api/titles?page=1&service=all");
-        if (statsRes.ok) {
-          const s = await statsRes.json();
-          setStats((prev) => ({ ...prev, total: s.total }));
-        }
-      } else {
-        setResult({ error: data.error ?? "Sync failed" });
-      }
-    } catch {
-      setResult({ error: "Network error" });
+      const data = await syncCatalog();
+      setResult({ ok: true, message: `Synced ${data.titlesSynced} titles successfully.` });
+      setLastSync({ ...data, id: "", status: "completed", error: null, startedAt: new Date().toISOString(), completedAt: new Date().toISOString() });
+      const total = await fetchTotalTitles();
+      setStats((prev) => ({ ...prev, total }));
+    } catch (e) {
+      setResult({ error: e instanceof Error ? e.message : "Network error" });
     } finally {
       setSyncing(false);
     }
@@ -71,23 +63,11 @@ export default function SyncClient({ lastSync: initial, stats: initialStats }: S
     setEnriching(true);
     setResult(null);
     try {
-      const res = await fetch("/api/enrich", { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        setResult({
-          ok: true,
-          message: `Enriched ${data.enriched} titles. ${data.remaining} still pending.`,
-        });
-        setStats((prev) => ({
-          ...prev,
-          enriched: prev.enriched + data.enriched,
-          pending: data.remaining,
-        }));
-      } else {
-        setResult({ error: data.error ?? "Enrich failed" });
-      }
-    } catch {
-      setResult({ error: "Network error" });
+      const data = await enrichRatings();
+      setResult({ ok: true, message: `Enriched ${data.enriched} titles. ${data.remaining} still pending.` });
+      setStats((prev) => ({ ...prev, enriched: prev.enriched + data.enriched, pending: data.remaining }));
+    } catch (e) {
+      setResult({ error: e instanceof Error ? e.message : "Network error" });
     } finally {
       setEnriching(false);
     }

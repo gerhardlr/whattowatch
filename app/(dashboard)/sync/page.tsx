@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import SyncClient from "./SyncClient";
+import { SyncClient } from "@/components/SyncClient";
 
 export const dynamic = "force-dynamic";
 
