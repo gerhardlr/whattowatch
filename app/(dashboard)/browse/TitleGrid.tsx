@@ -82,7 +82,7 @@ function SynopsisTooltip({ item, children }: { item: TitleItem; children: React.
     </Box>
   );
   return (
-    <Tooltip title={content} placement="top" arrow enterDelay={400} disableInteractive>
+    <Tooltip title={content} placement="top" arrow enterDelay={10000} disableInteractive>
       {children}
     </Tooltip>
   );
