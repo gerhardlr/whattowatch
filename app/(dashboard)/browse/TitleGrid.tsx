@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
@@ -20,9 +20,17 @@ import Pagination from "@mui/material/Pagination";
 import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import IconButton from "@mui/material/IconButton";
+import CircularProgress from "@mui/material/CircularProgress";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import CloseIcon from "@mui/icons-material/Close";
 
 export interface TitleItem {
   id: string;
+  jwId: string;
   imdbId: string | null;
   title: string;
   year: number | null;
@@ -80,7 +88,13 @@ function SynopsisTooltip({ item, children }: { item: TitleItem; children: React.
   );
 }
 
-function TitleCard({ item }: { item: TitleItem }) {
+function TitleCard({
+  item,
+  onSimilarClick,
+}: {
+  item: TitleItem;
+  onSimilarClick: (item: TitleItem) => void;
+}) {
   const imdbUrl = item.imdbId ? `https://www.imdb.com/title/${item.imdbId}` : null;
   const rtUrl = `https://www.rottentomatoes.com/search?search=${encodeURIComponent(item.title)}`;
 
@@ -100,17 +114,43 @@ function TitleCard({ item }: { item: TitleItem }) {
           color: "inherit",
           cursor: imdbUrl ? "pointer" : "default",
           "&:hover": { transform: "translateY(-4px)", boxShadow: 6 },
+          "& .similar-btn": { opacity: 0, transition: "opacity 0.2s" },
+          "&:hover .similar-btn": { opacity: 1 },
         }}
       >
-        <CardMedia
-          component="img"
-          image={
-            item.posterUrl ??
-            `https://via.placeholder.com/166x240?text=${encodeURIComponent(item.title)}`
-          }
-          alt={item.title}
-          sx={{ aspectRatio: "2/3", objectFit: "cover" }}
-        />
+        <Box sx={{ position: "relative" }}>
+          <CardMedia
+            component="img"
+            image={
+              item.posterUrl ??
+              `https://via.placeholder.com/166x240?text=${encodeURIComponent(item.title)}`
+            }
+            alt={item.title}
+            sx={{ aspectRatio: "2/3", objectFit: "cover", display: "block" }}
+          />
+          <Tooltip title="Find similar titles">
+            <IconButton
+              className="similar-btn"
+              size="small"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSimilarClick(item);
+              }}
+              sx={{
+                position: "absolute",
+                top: 6,
+                right: 6,
+                bgcolor: "rgba(0,0,0,0.65)",
+                color: "#fff",
+                p: 0.5,
+                "&:hover": { bgcolor: "rgba(0,0,0,0.9)" },
+              }}
+            >
+              <AutoAwesomeIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
         <CardContent sx={{ flexGrow: 1, pb: 0 }}>
           <Typography variant="subtitle2" fontWeight={700} noWrap title={item.title}>
             {item.title}
@@ -207,6 +247,23 @@ export default function TitleGrid({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const [similarSource, setSimilarSource] = useState<TitleItem | null>(null);
+  const [similarTitles, setSimilarTitles] = useState<TitleItem[]>([]);
+  const [similarLoading, setSimilarLoading] = useState(false);
+
+  async function handleSimilarClick(item: TitleItem) {
+    setSimilarSource(item);
+    setSimilarTitles([]);
+    setSimilarLoading(true);
+    try {
+      const res = await fetch(`/api/similar?jwId=${item.jwId}`);
+      const data = await res.json();
+      setSimilarTitles(data.similar ?? []);
+    } finally {
+      setSimilarLoading(false);
+    }
+  }
+
   function updateParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
     params.set(key, value);
@@ -294,7 +351,7 @@ export default function TitleGrid({
       <Grid container spacing={2}>
         {titles.map((item) => (
           <Grid key={item.id} size={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
-            <TitleCard item={item} />
+            <TitleCard item={item} onSimilarClick={handleSimilarClick} />
           </Grid>
         ))}
         {titles.length === 0 && (
@@ -317,6 +374,44 @@ export default function TitleGrid({
           />
         </Box>
       )}
+
+      {/* Similar titles dialog */}
+      <Dialog
+        open={!!similarSource}
+        onClose={() => setSimilarSource(null)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle sx={{ pr: 6 }}>
+          <AutoAwesomeIcon sx={{ fontSize: 18, mr: 1, verticalAlign: "middle", color: "primary.main" }} />
+          Similar to &ldquo;{similarSource?.title}&rdquo;
+          <IconButton
+            onClick={() => setSimilarSource(null)}
+            sx={{ position: "absolute", right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {similarLoading ? (
+            <Box display="flex" justifyContent="center" py={6}>
+              <CircularProgress />
+            </Box>
+          ) : similarTitles.length === 0 ? (
+            <Typography color="text.secondary" textAlign="center" py={4}>
+              No similar titles found in the ZA Netflix / Prime catalog.
+            </Typography>
+          ) : (
+            <Grid container spacing={2} sx={{ pt: 1 }}>
+              {similarTitles.map((item) => (
+                <Grid key={item.id} size={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
+                  <TitleCard item={item} onSimilarClick={handleSimilarClick} />
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }
