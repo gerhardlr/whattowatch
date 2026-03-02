@@ -96,6 +96,7 @@ export function TitleDetailClient({ title, similar }: Props) {
           <WatchButtons
             onNetflix={title.onNetflix}
             onPrime={title.onPrime}
+            onApple={title.onApple}
             titleName={title.title}
           />
         </Box>

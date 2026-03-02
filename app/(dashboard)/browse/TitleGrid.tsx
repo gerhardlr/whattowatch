@@ -24,6 +24,7 @@ interface TitleGridProps {
   saOnly?: boolean;
   includeRentBuy?: boolean;
   genres?: string[];
+  excludeGenres?: string[];
   decade?: string;
   availableGenres: string[];
   minRt?: string;
@@ -44,6 +45,7 @@ export default function TitleGrid({
   saOnly,
   includeRentBuy,
   genres,
+  excludeGenres,
   decade,
   availableGenres,
   minRt,
@@ -93,6 +95,7 @@ export default function TitleGrid({
         saOnly={saOnly}
         includeRentBuy={includeRentBuy}
         genres={genres}
+        excludeGenres={excludeGenres}
         decade={decade}
         availableGenres={availableGenres}
         minRt={minRt}

@@ -12,6 +12,7 @@ interface SearchParams {
   service?: string;
   type?: string;
   genres?: string;
+  excludeGenres?: string;
   decade?: string;
   minRt?: string;
   minImdb?: string;
@@ -29,6 +30,8 @@ async function BrowseContent({ searchParams }: { searchParams: SearchParams }) {
   const type = searchParams.type ?? "all";
   const genresParam = searchParams.genres;
   const selectedGenres = genresParam ? genresParam.split(",").filter(Boolean) : [];
+  const excludeGenresParam = searchParams.excludeGenres;
+  const excludedGenres = excludeGenresParam ? excludeGenresParam.split(",").filter(Boolean) : [];
   const decade = searchParams.decade;
   const minRt = searchParams.minRt;
   const minImdb = searchParams.minImdb;
@@ -51,12 +54,21 @@ async function BrowseContent({ searchParams }: { searchParams: SearchParams }) {
     where.OR = includeRentBuy
       ? [{ onApple: true }, { onApplePay: true }]
       : [{ onApple: true }];
-  } else if (saOnly) {
-    where.OR = [{ onNetflix: true }, { onPrime: true }, ...(DISNEY_ENABLED ? [{ onDisney: true }] : []), { onApple: true }];
+  } else {
+    // "all" — only titles available on at least one service
+    where.OR = [
+      { onNetflix: true },
+      { onPrime: true },
+      { onPrimePay: true },
+      ...(DISNEY_ENABLED ? [{ onDisney: true }] : []),
+      { onApple: true },
+      { onApplePay: true },
+    ];
   }
   if (type === "movie") where.type = "movie";
   else if (type === "show") where.type = "show";
   if (selectedGenres.length > 0) where.genres = { hasSome: selectedGenres };
+  if (excludedGenres.length > 0) where.NOT = { genres: { hasSome: excludedGenres } };
   if (decade) {
     if (decade === "classic") {
       where.year = { lt: 1980 };
@@ -107,6 +119,7 @@ async function BrowseContent({ searchParams }: { searchParams: SearchParams }) {
       saOnly={saOnly}
       includeRentBuy={includeRentBuy}
       genres={selectedGenres.length > 0 ? selectedGenres : undefined}
+      excludeGenres={excludedGenres.length > 0 ? excludedGenres : undefined}
       decade={decade}
       availableGenres={availableGenres}
       minRt={minRt}

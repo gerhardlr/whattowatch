@@ -1,18 +1,13 @@
-import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { DISNEY_ENABLED } from "@/lib/features";
-import TitleGrid from "../browse/TitleGrid";
-import CircularProgress from "@mui/material/CircularProgress";
-import Box from "@mui/material/Box";
+import TitleGrid from "./browse/TitleGrid";
 
 const PAGE_SIZE = 48;
 
-interface SearchParams {
+export interface TitlePageSearchParams {
   service?: string;
-  sort?: string;
-  page?: string;
-  q?: string;
+  type?: string;
   genres?: string;
   excludeGenres?: string;
   decade?: string;
@@ -20,12 +15,21 @@ interface SearchParams {
   minImdb?: string;
   director?: string;
   actor?: string;
+  sort?: string;
+  page?: string;
+  q?: string;
   sa?: string;
   rentbuy?: string;
 }
 
-async function SeriesContent({ searchParams }: { searchParams: SearchParams }) {
+interface Props {
+  searchParams: TitlePageSearchParams;
+  fixedType?: "movie" | "show";
+}
+
+export async function TitlePageContent({ searchParams, fixedType }: Props) {
   const service = searchParams.service ?? "all";
+  const type = fixedType ?? searchParams.type ?? "all";
   const sort = searchParams.sort ?? "rtScore";
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10));
   const search = searchParams.q;
@@ -39,7 +43,8 @@ async function SeriesContent({ searchParams }: { searchParams: SearchParams }) {
   const saOnly = searchParams.sa === "1";
   const includeRentBuy = searchParams.rentbuy === "1";
 
-  const where: Prisma.TitleWhereInput = { type: "show" };
+  const where: Prisma.TitleWhereInput = {};
+
   if (service === "netflix") where.onNetflix = true;
   else if (service === "prime") {
     where.OR = includeRentBuy
@@ -60,8 +65,13 @@ async function SeriesContent({ searchParams }: { searchParams: SearchParams }) {
       { onApplePay: true },
     ];
   }
+
+  if (type === "movie") where.type = "movie";
+  else if (type === "show") where.type = "show";
+
   if (selectedGenres.length > 0) where.genres = { hasSome: selectedGenres };
   if (excludedGenres.length > 0) where.NOT = { genres: { hasSome: excludedGenres } };
+
   if (decade) {
     if (decade === "classic") {
       where.year = { lt: 1980 };
@@ -70,6 +80,7 @@ async function SeriesContent({ searchParams }: { searchParams: SearchParams }) {
       where.year = { gte: start, lt: start + 10 };
     }
   }
+
   if (minRt) where.rtScore = { gte: parseInt(minRt, 10) };
   if (minImdb) where.imdbRating = { gte: parseFloat(minImdb) };
   if (director) where.director = { contains: director, mode: "insensitive" };
@@ -101,7 +112,7 @@ async function SeriesContent({ searchParams }: { searchParams: SearchParams }) {
       service={service}
       sort={sort}
       search={search ?? undefined}
-      fixedType="show"
+      fixedType={fixedType}
       saOnly={saOnly}
       includeRentBuy={includeRentBuy}
       genres={selectedGenres.length > 0 ? selectedGenres : undefined}
@@ -113,14 +124,5 @@ async function SeriesContent({ searchParams }: { searchParams: SearchParams }) {
       director={director}
       actor={actor}
     />
-  );
-}
-
-export default async function SeriesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  const params = await searchParams;
-  return (
-    <Suspense fallback={<Box display="flex" justifyContent="center" py={8}><CircularProgress /></Box>}>
-      <SeriesContent searchParams={params} />
-    </Suspense>
   );
 }

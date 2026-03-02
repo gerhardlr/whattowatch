@@ -34,6 +34,7 @@ export interface FilterBarProps {
   saOnly?: boolean;
   includeRentBuy?: boolean;
   genres?: string[];
+  excludeGenres?: string[];
   decade?: string;
   availableGenres: string[];
   minRt?: string;
@@ -56,6 +57,7 @@ export function FilterBar({
   saOnly,
   includeRentBuy,
   genres,
+  excludeGenres,
   decade,
   availableGenres,
   minRt,
@@ -73,11 +75,15 @@ export function FilterBar({
       : availableGenres;
 
   const [selectedGenres, setSelectedGenres] = useState<string[]>(effectiveGenres);
+  const [selectedExcludeGenres, setSelectedExcludeGenres] = useState<string[]>(excludeGenres ?? []);
 
   // Sync local state when the genres URL param changes (navigation)
   const genresKey = genres ? genres.join(",") : "";
+  const excludeGenresKey = excludeGenres ? excludeGenres.join(",") : "";
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setSelectedGenres(effectiveGenres); }, [genresKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setSelectedExcludeGenres(excludeGenres ?? []); }, [excludeGenresKey]);
 
   const allGenresSelected = selectedGenres.length === availableGenres.length;
 
@@ -197,6 +203,38 @@ export function FilterBar({
                 {availableGenres.map((g) => (
                   <MenuItem key={g} value={g} dense>
                     <Checkbox size="small" checked={selectedGenres.includes(g)} />
+                    <ListItemText primary={g} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+        )}
+        {availableGenres.length > 0 && (
+          <Grid size={{ xs: 6, sm: 4, md: 2 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel shrink>Exclude Genre</InputLabel>
+              <Select
+                multiple
+                displayEmpty
+                size="small"
+                label="Exclude Genre"
+                notched
+                value={selectedExcludeGenres}
+                onChange={(e) => {
+                  const val = e.target.value as string[];
+                  setSelectedExcludeGenres(val);
+                  onParamChange("excludeGenres", val.join(","));
+                }}
+                renderValue={(selected) =>
+                  selected.length === 0
+                    ? "None"
+                    : `${selected.length} excluded`
+                }
+              >
+                {availableGenres.map((g) => (
+                  <MenuItem key={g} value={g} dense>
+                    <Checkbox size="small" checked={selectedExcludeGenres.includes(g)} />
                     <ListItemText primary={g} />
                   </MenuItem>
                 ))}

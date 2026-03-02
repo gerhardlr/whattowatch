@@ -14,12 +14,14 @@ interface SearchParams {
   page?: string;
   q?: string;
   genres?: string;
+  excludeGenres?: string;
   decade?: string;
   minRt?: string;
   minImdb?: string;
   director?: string;
   actor?: string;
   sa?: string;
+  rentbuy?: string;
 }
 
 async function MoviesContent({ searchParams }: { searchParams: SearchParams }) {
@@ -28,6 +30,7 @@ async function MoviesContent({ searchParams }: { searchParams: SearchParams }) {
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10));
   const search = searchParams.q;
   const selectedGenres = searchParams.genres ? searchParams.genres.split(",").filter(Boolean) : [];
+  const excludedGenres = searchParams.excludeGenres ? searchParams.excludeGenres.split(",").filter(Boolean) : [];
   const decade = searchParams.decade;
   const minRt = searchParams.minRt;
   const minImdb = searchParams.minImdb;
@@ -47,10 +50,18 @@ async function MoviesContent({ searchParams }: { searchParams: SearchParams }) {
     where.OR = includeRentBuy
       ? [{ onApple: true }, { onApplePay: true }]
       : [{ onApple: true }];
-  } else if (saOnly) {
-    where.OR = [{ onNetflix: true }, { onPrime: true }, ...(DISNEY_ENABLED ? [{ onDisney: true }] : []), { onApple: true }];
+  } else {
+    where.OR = [
+      { onNetflix: true },
+      { onPrime: true },
+      { onPrimePay: true },
+      ...(DISNEY_ENABLED ? [{ onDisney: true }] : []),
+      { onApple: true },
+      { onApplePay: true },
+    ];
   }
   if (selectedGenres.length > 0) where.genres = { hasSome: selectedGenres };
+  if (excludedGenres.length > 0) where.NOT = { genres: { hasSome: excludedGenres } };
   if (decade) {
     if (decade === "classic") {
       where.year = { lt: 1980 };
@@ -94,6 +105,7 @@ async function MoviesContent({ searchParams }: { searchParams: SearchParams }) {
       saOnly={saOnly}
       includeRentBuy={includeRentBuy}
       genres={selectedGenres.length > 0 ? selectedGenres : undefined}
+      excludeGenres={excludedGenres.length > 0 ? excludedGenres : undefined}
       decade={decade}
       availableGenres={availableGenres}
       minRt={minRt}

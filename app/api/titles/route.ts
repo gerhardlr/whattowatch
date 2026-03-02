@@ -11,6 +11,8 @@ export async function GET(req: NextRequest) {
   const type = searchParams.get("type") ?? "all";
   const genresParam = searchParams.get("genres");
   const selectedGenres = genresParam ? genresParam.split(",").filter(Boolean) : [];
+  const excludeGenresParam = searchParams.get("excludeGenres");
+  const excludedGenres = excludeGenresParam ? excludeGenresParam.split(",").filter(Boolean) : [];
   const sort = searchParams.get("sort") ?? "rtScore";
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
   const search = searchParams.get("q");
@@ -28,6 +30,16 @@ export async function GET(req: NextRequest) {
     where.OR = includeRentBuy
       ? [{ onApple: true }, { onApplePay: true }]
       : [{ onApple: true }];
+  } else {
+    // "all" — only titles available on at least one service
+    where.OR = [
+      { onNetflix: true },
+      { onPrime: true },
+      { onPrimePay: true },
+      { onDisney: true },
+      { onApple: true },
+      { onApplePay: true },
+    ];
   }
 
   if (type === "movie") where.type = "movie";
@@ -35,6 +47,9 @@ export async function GET(req: NextRequest) {
 
   if (selectedGenres.length > 0) {
     where.genres = { hasSome: selectedGenres };
+  }
+  if (excludedGenres.length > 0) {
+    where.NOT = { genres: { hasSome: excludedGenres } };
   }
 
   if (search) {
