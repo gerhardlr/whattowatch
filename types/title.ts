@@ -18,6 +18,7 @@ export interface TitleItem {
   runtime: string | null;
   plot: string | null;
   director: string | null;
+  actors: string | null;
   onNetflix: boolean;
   onPrime: boolean;
   ratingsUpdatedAt: string | null;

@@ -1,2 +1,3 @@
-export { TitleCard, rtColor } from "./TitleCard";
+export { TitleCard } from "./TitleCard";
+export { rtColor } from "./rtColor";
 export type { TitleItem } from "@/types";

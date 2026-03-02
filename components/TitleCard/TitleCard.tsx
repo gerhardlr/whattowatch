@@ -1,6 +1,7 @@
 "use client";
 
 import type { TitleItem } from "@/types";
+import { rtColor } from "./rtColor";
 import Link from "next/link";
 import Card from "@mui/material/Card";
 import CardMedia from "@mui/material/CardMedia";
@@ -10,12 +11,7 @@ import Typography from "@mui/material/Typography";
 import Chip from "@mui/material/Chip";
 
 export type { TitleItem };
-
-export function rtColor(score: number): string {
-  if (score >= 75) return "#fa320a";
-  if (score >= 60) return "#f5c518";
-  return "#757575";
-}
+export { rtColor };
 
 export function TitleCard({ item }: { item: TitleItem }) {
   return (
