@@ -11,6 +11,11 @@ interface SearchParams {
   service?: string;
   type?: string;
   genre?: string;
+  decade?: string;
+  minRt?: string;
+  minImdb?: string;
+  director?: string;
+  actor?: string;
   sort?: string;
   page?: string;
   q?: string;
@@ -21,6 +26,11 @@ async function BrowseContent({ searchParams }: { searchParams: SearchParams }) {
   const service = searchParams.service ?? "all";
   const type = searchParams.type ?? "all";
   const genre = searchParams.genre;
+  const decade = searchParams.decade;
+  const minRt = searchParams.minRt;
+  const minImdb = searchParams.minImdb;
+  const director = searchParams.director;
+  const actor = searchParams.actor;
   const sort = searchParams.sort ?? "rtScore";
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10));
   const search = searchParams.q;
@@ -33,6 +43,18 @@ async function BrowseContent({ searchParams }: { searchParams: SearchParams }) {
   if (type === "movie") where.type = "movie";
   else if (type === "show") where.type = "show";
   if (genre) where.genres = { has: genre };
+  if (decade) {
+    if (decade === "classic") {
+      where.year = { lt: 1980 };
+    } else {
+      const start = parseInt(decade, 10);
+      where.year = { gte: start, lt: start + 10 };
+    }
+  }
+  if (minRt) where.rtScore = { gte: parseInt(minRt, 10) };
+  if (minImdb) where.imdbRating = { gte: parseFloat(minImdb) };
+  if (director) where.director = { contains: director, mode: "insensitive" };
+  if (actor) where.actors = { contains: actor, mode: "insensitive" };
   if (search) where.title = { contains: search, mode: "insensitive" };
 
   const orderBy: Prisma.TitleOrderByWithRelationInput =
@@ -44,7 +66,7 @@ async function BrowseContent({ searchParams }: { searchParams: SearchParams }) {
       ? { title: "asc" }
       : { rtScore: "desc" };
 
-  const [total, titles] = await Promise.all([
+  const [total, titles, genreResult] = await Promise.all([
     prisma.title.count({ where }),
     prisma.title.findMany({
       where,
@@ -52,7 +74,9 @@ async function BrowseContent({ searchParams }: { searchParams: SearchParams }) {
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
     }),
+    prisma.$runCommandRaw({ distinct: "Title", key: "genres" }) as Promise<{ values: string[] }>,
   ]);
+  const availableGenres = [...(genreResult.values ?? [])].sort();
 
   return (
     <TitleGrid
@@ -67,6 +91,13 @@ async function BrowseContent({ searchParams }: { searchParams: SearchParams }) {
       sort={sort}
       search={search ?? undefined}
       saOnly={saOnly}
+      genre={genre}
+      decade={decade}
+      availableGenres={availableGenres}
+      minRt={minRt}
+      minImdb={minImdb}
+      director={director}
+      actor={actor}
     />
   );
 }

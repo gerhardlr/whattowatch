@@ -1,0 +1,1 @@
+export { syncTitles } from "./sync";

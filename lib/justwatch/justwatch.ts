@@ -1,20 +1,10 @@
+import type { JWTitle, JWTitleType } from "@/types";
+
+export type { JWTitle, JWTitleType };
+
 const JUSTWATCH_GRAPHQL = "https://apis.justwatch.com/graphql";
 const COUNTRY = "ZA";
 const LANGUAGE = "en";
-
-export type JWTitleType = "MOVIE" | "SHOW";
-
-export interface JWTitle {
-  jwId: string;
-  imdbId: string | null;
-  title: string;
-  year: number | null;
-  type: "movie" | "show";
-  genres: string[];
-  posterUrl: string | null;
-  onNetflix: boolean;
-  onPrime: boolean;
-}
 
 interface JWNode {
   id: string;

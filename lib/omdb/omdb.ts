@@ -1,15 +1,8 @@
-const OMDB_BASE = "https://www.omdbapi.com";
+import type { OmdbRatings } from "@/types";
 
-export interface OmdbRatings {
-  imdbRating: number | null;
-  rtScore: number | null;
-  metacritic: number | null;
-  plot: string | null;
-  director: string | null;
-  actors: string | null;
-  runtime: string | null;
-  rated: string | null;
-}
+export type { OmdbRatings };
+
+const OMDB_BASE = "https://www.omdbapi.com";
 
 function parseRtScore(ratings: Array<{ Source: string; Value: string }>): number | null {
   const rt = ratings.find((r) => r.Source === "Rotten Tomatoes");
