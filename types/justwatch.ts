@@ -3,6 +3,11 @@
  */
 export type JWTitleType = "MOVIE" | "SHOW";
 
+export interface JWGenre {
+  id: string;
+  name: string;
+}
+
 export interface JWTitle {
   jwId: string;
   imdbId: string | null;

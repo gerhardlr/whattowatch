@@ -1,2 +1,3 @@
-export { fetchAllTitles } from "./justwatch";
-export type { JWTitle, JWTitleType } from "./justwatch";
+export { fetchAllTitles } from "./fetchTitles";
+export { fetchGenres } from "./fetchGenres";
+export type { JWTitle, JWTitleType, JWGenre } from "@/types";

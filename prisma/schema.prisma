@@ -51,3 +51,13 @@ model SyncLog {
   startedAt    DateTime  @default(now())
   completedAt  DateTime?
 }
+
+// Singleton row (id = "singleton") tracking in-progress sync state across chained invocations
+model SyncState {
+  id           String   @id @map("_id")
+  phase        String   // "providers" | "genres" | "complete"
+  phaseIndex   Int
+  genres       String[]
+  syncLogId    String   @db.ObjectId
+  titlesSynced Int
+}

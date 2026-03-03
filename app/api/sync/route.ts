@@ -1,44 +1,32 @@
+import { after } from "next/server";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAuthorized } from "@/lib/auth";
-import { syncTitles } from "@/lib/sync";
-
-export const maxDuration = 300;
+import { startSync } from "@/lib/sync";
 
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const result = await syncTitles();
+  await startSync();
 
-    // Fire-and-forget enrich call (don't await — Vercel will handle it)
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? `https://${req.headers.get("host")}`;
-    fetch(`${baseUrl}/api/enrich`, {
+  // Fire the first step after returning the response — each step chains to the next
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? `https://${req.headers.get("host")}`;
+  const secret = process.env.SYNC_SECRET ?? "";
+  after(async () => {
+    await fetch(`${baseUrl}/api/sync/step`, {
       method: "POST",
-      headers: { "x-sync-secret": process.env.SYNC_SECRET ?? "" },
-    }).catch(() => {});
+      headers: { "x-sync-secret": secret },
+    });
+  });
 
-    return NextResponse.json({ ok: true, ...result });
-  } catch (err: unknown) {
-    const e = err as { code?: string; syncId?: string; message?: string };
-    if (e.code === "ALREADY_RUNNING") {
-      return NextResponse.json(
-        { error: e.message ?? "Sync already in progress", syncId: e.syncId },
-        { status: 409 }
-      );
-    }
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return NextResponse.json({ ok: true, queued: true });
 }
 
 export async function GET(req: NextRequest) {
   // Vercel Cron invokes via GET with Authorization: Bearer <CRON_SECRET>
-  const secret = process.env.SYNC_SECRET;
-  const cronHeader = req.headers.get("authorization");
-  if (secret && cronHeader === `Bearer ${secret}`) {
+  if (isAuthorized(req)) {
     return POST(req);
   }
 

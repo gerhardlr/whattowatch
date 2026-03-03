@@ -2,7 +2,8 @@
  * @jest-environment node
  */
 
-import { fetchAllTitles } from "./justwatch";
+import { fetchAllTitles } from "./fetchTitles";
+import { fetchGenres } from "./fetchGenres";
 
 type OfferOverride = { technicalName: string; monetizationType?: string };
 
@@ -249,5 +250,109 @@ describe("fetchAllTitles", () => {
       json: () => Promise.resolve({ errors: [{ message: "Some GQL error" }] }),
     }) as jest.Mock;
     await expect(fetchAllTitles()).rejects.toThrow("JustWatch GraphQL error");
+  });
+});
+
+// ── Genre loop ───────────────────────────────────────────────────────────────
+
+describe("fetchAllTitles with genres", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it("skips genre loop when genres array is empty", async () => {
+    mockFetch(makePage([]), makePage([]), makePage([]));
+    await fetchAllTitles([]);
+    // Only 3 calls for the 3 unfiltered provider passes
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it("adds titles from genre passes that weren't in the unfiltered pass", async () => {
+    const unfilteredNode = makeNode({ id: "jw-1", offers: [{ technicalName: "netflix" }] });
+    const genreOnlyNode = makeNode({ id: "jw-2", offers: [{ technicalName: "netflix" }] });
+
+    // 3 unfiltered (one per provider) + 1 genre (all providers together) = 4 calls
+    mockFetch(
+      makePage([unfilteredNode]), // netflix unfiltered → jw-1
+      makePage([]),               // amazonprimevideo unfiltered
+      makePage([]),               // appletvplus unfiltered
+      makePage([genreOnlyNode]),  // all providers genre "1" → jw-2
+    );
+
+    const results = await fetchAllTitles([{ id: "1", name: "Action" }]);
+    expect(results).toHaveLength(2);
+    expect(results.map((r) => r.jwId)).toContain("jw-1");
+    expect(results.map((r) => r.jwId)).toContain("jw-2");
+  });
+
+  it("deduplicates titles seen in both unfiltered and genre passes", async () => {
+    const node = makeNode({ id: "jw-1", offers: [{ technicalName: "netflix" }] });
+
+    // 3 unfiltered + 1 genre (all providers together) = 4 calls
+    mockFetch(
+      makePage([node]), // netflix unfiltered → jw-1 added
+      makePage([]),     // amazonprimevideo unfiltered
+      makePage([]),     // appletvplus unfiltered
+      makePage([node]), // all providers genre → jw-1 already exists, flags merged
+    );
+
+    const results = await fetchAllTitles([{ id: "1", name: "Action" }]);
+    expect(results).toHaveLength(1);
+  });
+
+  it("merges provider flags when a title reappears in genre pass with a new provider", async () => {
+    const netflixNode = makeNode({ id: "jw-1", offers: [{ technicalName: "netflix" }] });
+    const primeNode = makeNode({ id: "jw-1", offers: [{ technicalName: "amazonprimevideo" }] });
+
+    // 3 unfiltered + 1 genre (all providers together) = 4 calls
+    mockFetch(
+      makePage([netflixNode]), // netflix unfiltered → jw-1 (onNetflix=true)
+      makePage([]),
+      makePage([]),
+      makePage([primeNode]),   // genre pass returns jw-1 with prime offer → merges flag
+    );
+
+    const results = await fetchAllTitles([{ id: "1", name: "Action" }]);
+    expect(results).toHaveLength(1);
+    expect(results[0].onNetflix).toBe(true);
+    expect(results[0].onPrime).toBe(true);
+  });
+});
+
+// ── fetchGenres ──────────────────────────────────────────────────────────────
+
+describe("fetchGenres", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it("returns mapped genres from the API using shortName as id", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: {
+            genres: [
+              { shortName: "act", translation: "Action & Adventure" },
+              { shortName: "cmy", translation: "Comedy" },
+            ],
+          },
+        }),
+    }) as jest.Mock;
+
+    const genres = await fetchGenres();
+    expect(genres).toEqual([
+      { id: "act", name: "Action & Adventure" },
+      { id: "cmy", name: "Comedy" },
+    ]);
+  });
+
+  it("throws on HTTP error", async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500, statusText: "Server Error" }) as jest.Mock;
+    await expect(fetchGenres()).rejects.toThrow("JustWatch API error");
+  });
+
+  it("throws on GraphQL errors", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ errors: [{ message: "GQL error" }] }),
+    }) as jest.Mock;
+    await expect(fetchGenres()).rejects.toThrow("JustWatch GraphQL error");
   });
 });

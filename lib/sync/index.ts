@@ -1,1 +1,1 @@
-export { syncTitles } from "./sync";
+export { startSync, runSyncStep } from "./sync";

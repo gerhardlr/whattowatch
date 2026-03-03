@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthorized } from "@/lib/auth";
 import { enrichTitles } from "@/lib/enrich";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 // Vercel Cron invokes via GET — delegate to POST handler
 export async function GET(req: NextRequest) {
