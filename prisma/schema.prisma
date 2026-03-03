@@ -57,6 +57,7 @@ model SyncState {
   id           String   @id @map("_id")
   phase        String   // "providers" | "genres" | "complete"
   phaseIndex   Int
+  cursor       String?  // JustWatch pagination cursor — set when a provider needs multiple steps
   genres       String[]
   syncLogId    String   @db.ObjectId
   titlesSynced Int

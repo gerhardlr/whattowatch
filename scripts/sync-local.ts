@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
-// Runs the full catalog sync directly against the DB — no HTTP server needed.
-// Bypasses Vercel's function timeout limit for local or CI use.
+// Runs the full step-based catalog sync directly against the DB — no HTTP server needed.
+// Simulates the Vercel after() chain by calling each step sequentially in a loop.
+// Useful for measuring per-step timings before deploying.
 //
 // Usage: npm run sync:local
 
@@ -15,25 +16,34 @@ try {
   }
 } catch { /* rely on actual env */ }
 
-import { syncTitles } from "../lib/sync";
+import { startSync, runSyncStep } from "../lib/sync";
 
 async function main() {
-  console.log("Starting catalog sync…");
-  const start = Date.now();
+  const totalStart = Date.now();
+  console.log("Starting sync — initialising (reset flags + fetch genres)…");
 
-  try {
-    const result = await syncTitles();
-    const secs = ((Date.now() - start) / 1000).toFixed(1);
-    console.log(`Synced ${result.titlesSynced} titles in ${secs}s (syncId: ${result.syncId})`);
-  } catch (err: unknown) {
-    const e = err as { code?: string; message?: string };
-    if (e.code === "ALREADY_RUNNING") {
-      console.error("Sync already in progress. Run npm run sync:reset first if it crashed.");
-      process.exit(1);
-    }
-    console.error("Sync failed:", e.message ?? err);
-    process.exit(1);
+  const initStart = Date.now();
+  await startSync();
+  console.log(`  init done in ${((Date.now() - initStart) / 1000).toFixed(1)}s\n`);
+
+  let stepNum = 0;
+  while (true) {
+    stepNum++;
+    const stepStart = Date.now();
+    console.log(`\n--- step ${stepNum} ---`);
+
+    const { done, phase } = await runSyncStep();
+    const elapsed = ((Date.now() - stepStart) / 1000).toFixed(1);
+    console.log(`  step ${stepNum} complete: ${phase}  (${elapsed}s)`);
+
+    if (done) break;
   }
+
+  const totalSecs = ((Date.now() - totalStart) / 1000).toFixed(1);
+  console.log(`\nSync complete in ${totalSecs}s across ${stepNum} steps.`);
 }
 
-main();
+main().catch((err) => {
+  console.error("Sync failed:", err.message ?? err);
+  process.exit(1);
+});

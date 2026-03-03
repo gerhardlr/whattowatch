@@ -140,6 +140,9 @@ async function fetchProviderPages(
     cursor = page.pageInfo.endCursor;
     pageCount++;
 
+    const label = genres ? `genre:${genres[0]}` : `provider:${providers[0]}`;
+    console.log(`  [jw] ${label} page ${pageCount} — ${titleMap.size} titles so far`);
+
     if (hasNext) await new Promise((r) => setTimeout(r, 100));
   }
 }
@@ -162,14 +165,95 @@ export async function fetchAllTitles(genres: JWGenre[] = []): Promise<JWTitle[]>
   return Array.from(titleMap.values());
 }
 
-/** Fetch all pages for a single provider (~20-30s). Used by the step-based sync. */
+/** Fetch up to maxPages pages for a single provider starting from startCursor.
+ *  Returns titles found, the next cursor (null if done), and whether more pages remain.
+ *  Keeps each sync step within Vercel's 60s function timeout. */
+export async function fetchProviderPage(
+  provider: string,
+  startCursor: string | null,
+  maxPages: number
+): Promise<{ titles: JWTitle[]; nextCursor: string | null; hasMore: boolean }> {
+  const titleMap = new Map<string, JWTitle>();
+  let cursor = startCursor;
+  let hasNext = true;
+  let pageCount = 0;
+
+  while (hasNext && pageCount < maxPages) {
+    const page = await fetchPage([provider], cursor);
+
+    for (const { node } of page.edges) {
+      const existing = titleMap.get(node.id);
+      if (existing) {
+        mergeFlags(existing, node.offers);
+      } else {
+        titleMap.set(node.id, mapNode(node));
+      }
+    }
+
+    hasNext = page.pageInfo.hasNextPage;
+    cursor = page.pageInfo.endCursor;
+    pageCount++;
+
+    console.log(`  [jw] provider:${provider} page ${pageCount}/${maxPages} — ${titleMap.size} titles`);
+
+    if (hasNext && pageCount < maxPages) await new Promise((r) => setTimeout(r, 100));
+  }
+
+  return {
+    titles: Array.from(titleMap.values()),
+    nextCursor: hasNext ? cursor : null,
+    hasMore: hasNext,
+  };
+}
+
+/** Fetch all pages for a single provider. Used by the step-based sync. */
 export async function fetchProviderTitles(provider: string): Promise<JWTitle[]> {
   const titleMap = new Map<string, JWTitle>();
   await fetchProviderPages(titleMap, [provider]);
   return Array.from(titleMap.values());
 }
 
-/** Fetch all pages for a single genre across all providers (~5-10s). Used by the step-based sync. */
+/** Fetch up to maxPages pages for a single genre starting from startCursor.
+ *  Same pagination contract as fetchProviderPage. */
+export async function fetchGenrePage(
+  genreId: string,
+  startCursor: string | null,
+  maxPages: number
+): Promise<{ titles: JWTitle[]; nextCursor: string | null; hasMore: boolean }> {
+  const titleMap = new Map<string, JWTitle>();
+  let cursor = startCursor;
+  let hasNext = true;
+  let pageCount = 0;
+
+  while (hasNext && pageCount < maxPages) {
+    const page = await fetchPage([...config.providers], cursor, [genreId]);
+
+    for (const { node } of page.edges) {
+      const existing = titleMap.get(node.id);
+      if (existing) {
+        mergeFlags(existing, node.offers);
+      } else {
+        titleMap.set(node.id, mapNode(node));
+      }
+    }
+
+    hasNext = page.pageInfo.hasNextPage;
+    cursor = page.pageInfo.endCursor;
+    pageCount++;
+
+    console.log(`  [jw] genre:${genreId} page ${pageCount}/${maxPages} — ${titleMap.size} titles`);
+
+    if (hasNext && pageCount < maxPages) await new Promise((r) => setTimeout(r, 100));
+  }
+
+  return {
+    titles: Array.from(titleMap.values()),
+    nextCursor: hasNext ? cursor : null,
+    hasMore: hasNext,
+  };
+}
+
+/** Fetch all pages for a single genre across all providers. */
 export async function fetchGenreTitles(genreId: string): Promise<JWTitle[]> {
   const titleMap = new Map<string, JWTitle>();
   await fetchProviderPages(titleMap, [...config.providers], [genreId]);

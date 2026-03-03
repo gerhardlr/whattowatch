@@ -1,11 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { fetchGenres } from "@/lib/justwatch";
-import { fetchProviderTitles, fetchGenreTitles } from "@/lib/justwatch/fetchTitles";
+import { fetchProviderPage, fetchGenrePage } from "@/lib/justwatch/fetchTitles";
 import config from "@/lib/justwatch/config";
 import type { JWTitle } from "@/types";
 
 const SYNC_ID = "singleton";
 const BATCH = 20;
+// Pages per provider step: 10 pages × ~100 titles = 1000 titles per step.
+// Conservative default — each step should run well within Vercel's 60s limit.
+// Increase if Vercel logs show steps completing in <30s.
+const PAGES_PER_STEP = 10;
 
 // Which DB flag fields each provider owns — genre passes only set these to true, never false
 function providerFlagUpdate(provider: string, t: JWTitle): Record<string, boolean> {
@@ -67,17 +71,29 @@ async function upsertTitles(
  * runSyncStep() repeatedly until it returns { done: true }.
  */
 export async function startSync(): Promise<void> {
-  // Clear all provider flags so titles removed from a platform get cleared
-  await prisma.title.updateMany({
-    data: {
-      onNetflix: false,
-      onPrime: false,
-      onPrimePay: false,
-      onDisney: false,
-      onApple: false,
-      onApplePay: false,
-    },
-  });
+  // Clear all provider flags so titles removed from a platform get cleared.
+  // Retry on write conflicts which can occur on Atlas free-tier shared infrastructure.
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      await prisma.title.updateMany({
+        data: {
+          onNetflix: false,
+          onPrime: false,
+          onPrimePay: false,
+          onDisney: false,
+          onApple: false,
+          onApplePay: false,
+        },
+      });
+      break;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isConflict = msg.includes("write conflict") || msg.includes("deadlock");
+      if (!isConflict || attempt === 5) throw err;
+      console.log(`  [sync] updateMany conflict, retrying (attempt ${attempt}/5)…`);
+      await new Promise((r) => setTimeout(r, attempt * 1000));
+    }
+  }
 
   const genres = await fetchGenres();
   const syncLog = await prisma.syncLog.create({ data: { status: "running" } });
@@ -88,6 +104,7 @@ export async function startSync(): Promise<void> {
       id: SYNC_ID,
       phase: "providers",
       phaseIndex: 0,
+      cursor: null,
       genres: genres.map((g) => g.id),
       syncLogId: syncLog.id,
       titlesSynced: 0,
@@ -95,6 +112,7 @@ export async function startSync(): Promise<void> {
     update: {
       phase: "providers",
       phaseIndex: 0,
+      cursor: null,
       genres: genres.map((g) => g.id),
       syncLogId: syncLog.id,
       titlesSynced: 0,
@@ -116,9 +134,23 @@ export async function runSyncStep(): Promise<{ done: boolean; phase: string }> {
   try {
     if (state.phase === "providers") {
       const provider = providers[state.phaseIndex];
-      const titles = await fetchProviderTitles(provider);
+      const { titles, nextCursor, hasMore } = await fetchProviderPage(
+        provider,
+        state.cursor ?? null,
+        PAGES_PER_STEP
+      );
       const count = await upsertTitles(titles, (t) => providerFlagUpdate(provider, t));
 
+      if (hasMore) {
+        // More pages remain for this provider — stay on same provider, advance cursor
+        await prisma.syncState.update({
+          where: { id: SYNC_ID },
+          data: { cursor: nextCursor, titlesSynced: state.titlesSynced + count },
+        });
+        return { done: false, phase: `providers[${state.phaseIndex}]=${provider} (continued)` };
+      }
+
+      // All pages for this provider done — advance to next provider or genres
       const nextIndex = state.phaseIndex + 1;
       const isLast = nextIndex >= providers.length;
       await prisma.syncState.update({
@@ -126,6 +158,7 @@ export async function runSyncStep(): Promise<{ done: boolean; phase: string }> {
         data: {
           phase: isLast ? "genres" : "providers",
           phaseIndex: isLast ? 0 : nextIndex,
+          cursor: null,
           titlesSynced: state.titlesSynced + count,
         },
       });
@@ -134,7 +167,11 @@ export async function runSyncStep(): Promise<{ done: boolean; phase: string }> {
 
     if (state.phase === "genres") {
       const genreId = state.genres[state.phaseIndex];
-      const titles = await fetchGenreTitles(genreId);
+      const { titles, nextCursor, hasMore } = await fetchGenrePage(
+        genreId,
+        state.cursor ?? null,
+        PAGES_PER_STEP
+      );
       // Only set flags to true — never overwrite a provider pass's true with false
       await upsertTitles(titles, (t) => ({
         ...(t.onNetflix ? { onNetflix: true } : {}),
@@ -145,6 +182,14 @@ export async function runSyncStep(): Promise<{ done: boolean; phase: string }> {
         ...(t.onApplePay ? { onApplePay: true } : {}),
       }));
 
+      if (hasMore) {
+        await prisma.syncState.update({
+          where: { id: SYNC_ID },
+          data: { cursor: nextCursor },
+        });
+        return { done: false, phase: `genres[${state.phaseIndex}]=${genreId} (continued)` };
+      }
+
       const nextIndex = state.phaseIndex + 1;
       const isLast = nextIndex >= state.genres.length;
       await prisma.syncState.update({
@@ -152,6 +197,7 @@ export async function runSyncStep(): Promise<{ done: boolean; phase: string }> {
         data: {
           phase: isLast ? "complete" : "genres",
           phaseIndex: isLast ? 0 : nextIndex,
+          cursor: null,
         },
       });
       return { done: false, phase: `genres[${state.phaseIndex}]=${genreId}` };
