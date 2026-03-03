@@ -311,6 +311,7 @@ export function FilterBar({
               if (e.key === "Enter")
                 onParamChange("director", (e.target as HTMLInputElement).value);
             }}
+            onBlur={(e) => onParamChange("director", e.target.value)}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 4, md: 3 }}>
@@ -323,6 +324,7 @@ export function FilterBar({
               if (e.key === "Enter")
                 onParamChange("actor", (e.target as HTMLInputElement).value);
             }}
+            onBlur={(e) => onParamChange("actor", e.target.value)}
           />
         </Grid>
 
