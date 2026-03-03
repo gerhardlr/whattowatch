@@ -107,6 +107,7 @@ export function FilterBar({
               if (e.key === "Enter")
                 onParamChange("q", (e.target as HTMLInputElement).value);
             }}
+            onBlur={(e) => onParamChange("q", e.target.value)}
           />
         </Grid>
         {!serviceLocked && (
