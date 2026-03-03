@@ -31,7 +31,6 @@ beforeEach(() => {
   mockFindMany.mockResolvedValue([]);
 });
 
-// Helper: grab the `where` argument passed to prisma.title.count
 function capturedWhere() {
   return mockCount.mock.calls[0][0].where as Record<string, unknown>;
 }
@@ -43,15 +42,11 @@ function capturedOrderBy() {
 // ── Service filters ───────────────────────────────────────────────────────────
 
 describe("service filter", () => {
-  it("sets no service condition when service=all (default)", async () => {
+  it("sets OR across all services when service=all (default)", async () => {
     await GET(makeReq());
     const where = capturedWhere();
+    expect(where).toHaveProperty("OR");
     expect(where).not.toHaveProperty("onNetflix");
-    expect(where).not.toHaveProperty("onPrime");
-    expect(where).not.toHaveProperty("onPrimePay");
-    expect(where).not.toHaveProperty("onDisney");
-    expect(where).not.toHaveProperty("onApple");
-    expect(where).not.toHaveProperty("onApplePay");
   });
 
   it("filters by onNetflix=true when service=netflix", async () => {
@@ -59,14 +54,18 @@ describe("service filter", () => {
     expect(capturedWhere()).toMatchObject({ onNetflix: true });
   });
 
-  it("filters by onPrime=true when service=prime", async () => {
+  it("filters by onPrime only (no rentbuy) when service=prime", async () => {
     await GET(makeReq({ service: "prime" }));
-    expect(capturedWhere()).toMatchObject({ onPrime: true });
+    const { OR } = capturedWhere() as { OR: object[] };
+    expect(OR).toContainEqual({ onPrime: true });
+    expect(OR).not.toContainEqual({ onPrimePay: true });
   });
 
-  it("filters by onPrimePay=true when service=primepay", async () => {
-    await GET(makeReq({ service: "primepay" }));
-    expect(capturedWhere()).toMatchObject({ onPrimePay: true });
+  it("includes onPrimePay when service=prime and rentbuy=1", async () => {
+    await GET(makeReq({ service: "prime", rentbuy: "1" }));
+    const { OR } = capturedWhere() as { OR: object[] };
+    expect(OR).toContainEqual({ onPrime: true });
+    expect(OR).toContainEqual({ onPrimePay: true });
   });
 
   it("filters by onDisney=true when service=disney", async () => {
@@ -74,21 +73,18 @@ describe("service filter", () => {
     expect(capturedWhere()).toMatchObject({ onDisney: true });
   });
 
-  it("filters by onApple=true when service=apple", async () => {
+  it("filters by onApple only (no rentbuy) when service=apple", async () => {
     await GET(makeReq({ service: "apple" }));
-    expect(capturedWhere()).toMatchObject({ onApple: true });
+    const { OR } = capturedWhere() as { OR: object[] };
+    expect(OR).toContainEqual({ onApple: true });
+    expect(OR).not.toContainEqual({ onApplePay: true });
   });
 
-  it("filters by onApplePay=true when service=applepay", async () => {
-    await GET(makeReq({ service: "applepay" }));
-    expect(capturedWhere()).toMatchObject({ onApplePay: true });
-  });
-
-  it("does not mix service flags — primepay does not set onPrime", async () => {
-    await GET(makeReq({ service: "primepay" }));
-    const where = capturedWhere();
-    expect(where).not.toHaveProperty("onPrime");
-    expect(where).toMatchObject({ onPrimePay: true });
+  it("includes onApplePay when service=apple and rentbuy=1", async () => {
+    await GET(makeReq({ service: "apple", rentbuy: "1" }));
+    const { OR } = capturedWhere() as { OR: object[] };
+    expect(OR).toContainEqual({ onApple: true });
+    expect(OR).toContainEqual({ onApplePay: true });
   });
 });
 
@@ -114,14 +110,34 @@ describe("type filter", () => {
 // ── Genre filter ──────────────────────────────────────────────────────────────
 
 describe("genre filter", () => {
-  it("sets no genre condition when genre is absent", async () => {
+  it("sets no genre condition when genres param is absent", async () => {
     await GET(makeReq());
     expect(capturedWhere()).not.toHaveProperty("genres");
   });
 
-  it("filters genres using has operator", async () => {
-    await GET(makeReq({ genre: "Action" }));
-    expect(capturedWhere()).toMatchObject({ genres: { has: "Action" } });
+  it("filters genres using hasSome with a single value", async () => {
+    await GET(makeReq({ genres: "Action" }));
+    expect(capturedWhere()).toMatchObject({ genres: { hasSome: ["Action"] } });
+  });
+
+  it("filters genres using hasSome with multiple comma-separated values", async () => {
+    await GET(makeReq({ genres: "Action,Drama" }));
+    expect(capturedWhere()).toMatchObject({ genres: { hasSome: ["Action", "Drama"] } });
+  });
+
+  it("excludes genres via NOT.hasSome when excludeGenres is set", async () => {
+    await GET(makeReq({ excludeGenres: "Horror" }));
+    expect(capturedWhere()).toMatchObject({
+      NOT: { genres: { hasSome: ["Horror"] } },
+    });
+  });
+
+  it("can combine include and exclude genres", async () => {
+    await GET(makeReq({ genres: "Action", excludeGenres: "Horror" }));
+    expect(capturedWhere()).toMatchObject({
+      genres: { hasSome: ["Action"] },
+      NOT: { genres: { hasSome: ["Horror"] } },
+    });
   });
 });
 
@@ -209,12 +225,12 @@ describe("response shape", () => {
 // ── Combined filters ──────────────────────────────────────────────────────────
 
 describe("combined filters", () => {
-  it("applies service + type + genre together", async () => {
-    await GET(makeReq({ service: "netflix", type: "movie", genre: "Drama" }));
+  it("applies service + type + genres together", async () => {
+    await GET(makeReq({ service: "netflix", type: "movie", genres: "Drama" }));
     expect(capturedWhere()).toMatchObject({
       onNetflix: true,
       type: "movie",
-      genres: { has: "Drama" },
+      genres: { hasSome: ["Drama"] },
     });
   });
 });

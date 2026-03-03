@@ -1,7 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { TitleCard, rtColor, TitleItem } from "./TitleCard";
 
-// Mock next/link so it renders as a plain <a>
 jest.mock("next/link", () => {
   const Link = ({ href, children }: { href: string; children: import("react").ReactNode }) => (
     <a href={href}>{children}</a>
@@ -26,8 +25,13 @@ const baseItem: TitleItem = {
   runtime: "120 min",
   plot: "A test plot.",
   director: "Test Director",
+  actors: null,
   onNetflix: true,
   onPrime: false,
+  onPrimePay: false,
+  onDisney: false,
+  onApple: false,
+  onApplePay: false,
   ratingsUpdatedAt: null,
 };
 
@@ -72,6 +76,31 @@ describe("TitleCard", () => {
     expect(screen.queryByText("Prime")).not.toBeInTheDocument();
   });
 
+  it("renders Prime (Rent) chip when onPrimePay=true and onPrime=false", () => {
+    render(<TitleCard item={{ ...baseItem, onNetflix: false, onPrimePay: true }} />);
+    expect(screen.getByText("Prime (Rent)")).toBeInTheDocument();
+  });
+
+  it("does NOT render Prime (Rent) chip when also on Prime", () => {
+    render(<TitleCard item={{ ...baseItem, onPrime: true, onPrimePay: true }} />);
+    expect(screen.queryByText("Prime (Rent)")).not.toBeInTheDocument();
+  });
+
+  it("renders Apple TV+ chip when onApple=true", () => {
+    render(<TitleCard item={{ ...baseItem, onNetflix: false, onApple: true }} />);
+    expect(screen.getByText("Apple TV+")).toBeInTheDocument();
+  });
+
+  it("renders Apple TV+ (Rent) chip when onApplePay=true and onApple=false", () => {
+    render(<TitleCard item={{ ...baseItem, onNetflix: false, onApplePay: true }} />);
+    expect(screen.getByText("Apple TV+ (Rent)")).toBeInTheDocument();
+  });
+
+  it("does NOT render Disney+ chip (DISNEY_ENABLED=false)", () => {
+    render(<TitleCard item={{ ...baseItem, onDisney: true }} />);
+    expect(screen.queryByText("Disney+")).not.toBeInTheDocument();
+  });
+
   it("renders RT score chip", () => {
     render(<TitleCard item={baseItem} />);
     expect(screen.getByText("80%")).toBeInTheDocument();
@@ -94,20 +123,17 @@ describe("TitleCard", () => {
 
   it("card link points to /title/{jwId}", () => {
     render(<TitleCard item={baseItem} />);
-    const link = screen.getByRole("link");
-    expect(link).toHaveAttribute("href", "/title/jw-123");
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/title/jw-123");
   });
 
   it("shows placeholder image when posterUrl is null", () => {
     render(<TitleCard item={baseItem} />);
-    const img = screen.getByRole("img");
-    expect(img).toHaveAttribute("src", expect.stringContaining("placeholder"));
+    expect(screen.getByRole("img")).toHaveAttribute("src", expect.stringContaining("placeholder"));
   });
 
   it("shows poster image when posterUrl is set", () => {
     render(<TitleCard item={{ ...baseItem, posterUrl: "https://example.com/poster.jpg" }} />);
-    const img = screen.getByRole("img");
-    expect(img).toHaveAttribute("src", "https://example.com/poster.jpg");
+    expect(screen.getByRole("img")).toHaveAttribute("src", "https://example.com/poster.jpg");
   });
 });
 

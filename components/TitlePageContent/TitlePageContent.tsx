@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { DISNEY_ENABLED } from "@/lib/features";
-import TitleGrid from "./browse/TitleGrid";
+import TitleGrid from "@/components/TitleGrid";
 
 const PAGE_SIZE = 48;
 
