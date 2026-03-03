@@ -7,6 +7,9 @@ import TvIcon from "@mui/icons-material/Tv";
 import GridViewIcon from "@mui/icons-material/GridView";
 import WhatshotIcon from "@mui/icons-material/Whatshot";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
+import SearchIcon from "@mui/icons-material/Search";
+import PublicIcon from "@mui/icons-material/Public";
+import TheaterComedyIcon from "@mui/icons-material/TheaterComedy";
 
 const navigation: Navigation = [
   { segment: "browse", title: "Browse All", icon: <GridViewIcon /> },
@@ -16,6 +19,9 @@ const navigation: Navigation = [
   { kind: "header", title: "Curated" },
   { segment: "action", title: "Action", icon: <WhatshotIcon /> },
   { segment: "acclaimed", title: "Acclaimed", icon: <EmojiEventsIcon /> },
+  { segment: "crime", title: "Crime", icon: <SearchIcon /> },
+  { segment: "european", title: "Made in Europe", icon: <PublicIcon /> },
+  { segment: "drama", title: "Drama", icon: <TheaterComedyIcon /> },
 ];
 
 const branding = { title: "WhatToWatch" };
