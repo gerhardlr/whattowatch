@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { DISNEY_ENABLED } from "@/lib/features";
+import type { FilterSpec } from "@/types";
 import TitleGrid from "@/components/TitleGrid";
 
 const PAGE_SIZE = 48;
@@ -25,23 +26,52 @@ export interface TitlePageSearchParams {
 interface Props {
   searchParams: TitlePageSearchParams;
   fixedType?: "movie" | "show";
+  filterSpec?: FilterSpec;
 }
 
-export async function TitlePageContent({ searchParams, fixedType }: Props) {
-  const service = searchParams.service ?? "all";
-  const type = fixedType ?? searchParams.type ?? "all";
+export async function TitlePageContent({ searchParams, fixedType, filterSpec }: Props) {
+  // ── Resolve effective filter values (spec takes priority; URL params are secondary) ──
+
+  const service = filterSpec?.service ?? searchParams.service ?? "all";
+  const effectiveFixedType = fixedType ?? filterSpec?.type;
+  const type = effectiveFixedType ?? searchParams.type ?? "all";
+
   const sort = searchParams.sort ?? "rtScore";
   const page = Math.max(1, parseInt(searchParams.page ?? "1", 10));
   const search = searchParams.q;
-  const selectedGenres = searchParams.genres ? searchParams.genres.split(",").filter(Boolean) : [];
-  const excludedGenres = searchParams.excludeGenres ? searchParams.excludeGenres.split(",").filter(Boolean) : [];
   const decade = searchParams.decade;
-  const minRt = searchParams.minRt;
-  const minImdb = searchParams.minImdb;
   const director = searchParams.director;
   const actor = searchParams.actor;
   const saOnly = searchParams.sa === "1";
   const includeRentBuy = searchParams.rentbuy === "1";
+
+  // Genres: spec replaces URL genres entirely; excludeGenres merges with spec's
+  const urlGenres = searchParams.genres ? searchParams.genres.split(",").filter(Boolean) : [];
+  const selectedGenres = filterSpec?.genres ?? urlGenres;
+
+  const urlExcludeGenres = searchParams.excludeGenres
+    ? searchParams.excludeGenres.split(",").filter(Boolean)
+    : [];
+  const excludedGenres = [
+    ...new Set([...(filterSpec?.excludeGenres ?? []), ...urlExcludeGenres]),
+  ];
+
+  // Ratings: spec sets a floor; URL param can only raise it higher
+  const specMinRt = filterSpec?.minRt;
+  const urlMinRt = searchParams.minRt ? parseInt(searchParams.minRt, 10) : undefined;
+  const effectiveMinRt =
+    specMinRt !== undefined || urlMinRt !== undefined
+      ? Math.max(specMinRt ?? 0, urlMinRt ?? 0) || undefined
+      : undefined;
+
+  const specMinImdb = filterSpec?.minImdb;
+  const urlMinImdb = searchParams.minImdb ? parseFloat(searchParams.minImdb) : undefined;
+  const effectiveMinImdb =
+    specMinImdb !== undefined || urlMinImdb !== undefined
+      ? Math.max(specMinImdb ?? 0, urlMinImdb ?? 0) || undefined
+      : undefined;
+
+  // ── Build Prisma where clause ──────────────────────────────────────────────
 
   const where: Prisma.TitleWhereInput = {};
 
@@ -81,8 +111,8 @@ export async function TitlePageContent({ searchParams, fixedType }: Props) {
     }
   }
 
-  if (minRt) where.rtScore = { gte: parseInt(minRt, 10) };
-  if (minImdb) where.imdbRating = { gte: parseFloat(minImdb) };
+  if (effectiveMinRt) where.rtScore = { gte: effectiveMinRt };
+  if (effectiveMinImdb) where.imdbRating = { gte: effectiveMinImdb };
   if (director) where.director = { contains: director, mode: "insensitive" };
   if (actor) where.actors = { contains: actor, mode: "insensitive" };
   if (search) where.title = { contains: search, mode: "insensitive" };
@@ -112,17 +142,19 @@ export async function TitlePageContent({ searchParams, fixedType }: Props) {
       service={service}
       sort={sort}
       search={search ?? undefined}
-      fixedType={fixedType}
+      fixedType={effectiveFixedType}
       saOnly={saOnly}
       includeRentBuy={includeRentBuy}
       genres={selectedGenres.length > 0 ? selectedGenres : undefined}
       excludeGenres={excludedGenres.length > 0 ? excludedGenres : undefined}
       decade={decade}
       availableGenres={availableGenres}
-      minRt={minRt}
-      minImdb={minImdb}
+      minRt={effectiveMinRt?.toString()}
+      minImdb={effectiveMinImdb?.toString()}
       director={director}
       actor={actor}
+      genresLocked={!!filterSpec?.genres}
+      serviceLocked={!!filterSpec?.service}
     />
   );
 }

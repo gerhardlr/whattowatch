@@ -5,14 +5,17 @@ import type { Navigation } from "@toolpad/core/AppProvider";
 import MovieIcon from "@mui/icons-material/Movie";
 import TvIcon from "@mui/icons-material/Tv";
 import GridViewIcon from "@mui/icons-material/GridView";
-import SyncIcon from "@mui/icons-material/Sync";
+import WhatshotIcon from "@mui/icons-material/Whatshot";
+import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 
 const navigation: Navigation = [
   { segment: "browse", title: "Browse All", icon: <GridViewIcon /> },
   { segment: "movies", title: "Movies", icon: <MovieIcon /> },
   { segment: "series", title: "Series", icon: <TvIcon /> },
   { kind: "divider" },
-  { segment: "sync", title: "Sync Catalog", icon: <SyncIcon /> },
+  { kind: "header", title: "Curated" },
+  { segment: "action", title: "Action", icon: <WhatshotIcon /> },
+  { segment: "acclaimed", title: "Acclaimed", icon: <EmojiEventsIcon /> },
 ];
 
 const branding = { title: "WhatToWatch" };

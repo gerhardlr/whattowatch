@@ -45,6 +45,10 @@ export interface FilterBarProps {
   onParamChange: (key: string, value: string) => void;
   onSaChange: (checked: boolean) => void;
   onIncludeRentBuyChange: (checked: boolean) => void;
+  /** Hide the genre include dropdown (when a filterSpec locks genres) */
+  genresLocked?: boolean;
+  /** Hide the service dropdown (when a filterSpec locks service) */
+  serviceLocked?: boolean;
 }
 
 const RENT_BUY_SERVICES = new Set(["prime", "apple"]);
@@ -68,6 +72,8 @@ export function FilterBar({
   onParamChange,
   onSaChange,
   onIncludeRentBuyChange,
+  genresLocked,
+  serviceLocked,
 }: FilterBarProps) {
   const effectiveGenres =
     genres && genres.length > 0 && genres.length < availableGenres.length
@@ -103,22 +109,24 @@ export function FilterBar({
             }}
           />
         </Grid>
-        <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-          <FormControl fullWidth size="small">
-            <InputLabel>Service</InputLabel>
-            <Select
-              value={service ?? "all"}
-              label="Service"
-              onChange={(e) => onParamChange("service", e.target.value)}
-            >
-              <MenuItem value="all">All</MenuItem>
-              <MenuItem value="netflix">Netflix</MenuItem>
-              <MenuItem value="prime">Prime Video</MenuItem>
-              {DISNEY_ENABLED && <MenuItem value="disney">Disney+</MenuItem>}
-              <MenuItem value="apple">Apple TV+</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
+        {!serviceLocked && (
+          <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Service</InputLabel>
+              <Select
+                value={service ?? "all"}
+                label="Service"
+                onChange={(e) => onParamChange("service", e.target.value)}
+              >
+                <MenuItem value="all">All</MenuItem>
+                <MenuItem value="netflix">Netflix</MenuItem>
+                <MenuItem value="prime">Prime Video</MenuItem>
+                {DISNEY_ENABLED && <MenuItem value="disney">Disney+</MenuItem>}
+                <MenuItem value="apple">Apple TV+</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        )}
         {!fixedType && (
           <Grid size={{ xs: 6, sm: 3, md: 2 }}>
             <FormControl fullWidth size="small">
@@ -152,7 +160,7 @@ export function FilterBar({
         </Grid>
 
         {/* Row 2: Genre, Decade, Min RT, Min IMDb, Director, Actor */}
-        {availableGenres.length > 0 && (
+        {availableGenres.length > 0 && !genresLocked && (
           <Grid size={{ xs: 6, sm: 4, md: 2 }}>
             <FormControl fullWidth size="small">
               <InputLabel shrink>Genre</InputLabel>

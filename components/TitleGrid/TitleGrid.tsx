@@ -31,6 +31,8 @@ interface TitleGridProps {
   minImdb?: string;
   director?: string;
   actor?: string;
+  genresLocked?: boolean;
+  serviceLocked?: boolean;
 }
 
 export default function TitleGrid({
@@ -52,6 +54,8 @@ export default function TitleGrid({
   minImdb,
   director,
   actor,
+  genresLocked,
+  serviceLocked,
 }: TitleGridProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -106,6 +110,8 @@ export default function TitleGrid({
         onParamChange={updateParam}
         onSaChange={handleSaChange}
         onIncludeRentBuyChange={handleIncludeRentBuyChange}
+        genresLocked={genresLocked}
+        serviceLocked={serviceLocked}
       />
 
       <Grid container spacing={2}>
