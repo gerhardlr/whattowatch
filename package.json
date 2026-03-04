@@ -13,7 +13,9 @@
     "sync": "node scripts/sync.mjs",
     "sync:prod": "node scripts/sync.mjs https://whattowatch-umber.vercel.app",
     "sync:local": "tsx --tsconfig tsconfig.json scripts/sync-local.ts",
-    "sync:reset": "node scripts/reset-sync.mjs"
+    "sync:reset": "node scripts/reset-sync.mjs",
+    "stats": "tsx --tsconfig tsconfig.json scripts/stats.ts",
+    "enrich:local": "tsx --tsconfig tsconfig.json scripts/enrich-local.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

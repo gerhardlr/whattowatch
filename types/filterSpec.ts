@@ -11,6 +11,7 @@ export interface FilterSpec {
   excludeGenres?: string[];
   minRt?: number;
   minImdb?: number;
+  minMetacritic?: number;
   type?: "movie" | "show";
   service?: string;
 }

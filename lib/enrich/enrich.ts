@@ -1,8 +1,25 @@
+/**
+ * Ratings enrichment pipeline.
+ *
+ * Queries the DB for titles whose `ratingsUpdatedAt` field is unset (i.e. not
+ * yet enriched), calls the OMDB API for each one, and writes back IMDb rating,
+ * RT score, Metacritic score, plot, director, actors, runtime, and content rating.
+ *
+ * Titles with no IMDb ID are skipped. Titles where OMDB returns no data still
+ * have `ratingsUpdatedAt` stamped so they are not retried on the next run.
+ *
+ * Throttled to ~3 req/s to stay within OMDB's free-tier rate limit. Propagates
+ * OmdbRateLimitError so the caller can stop processing for the day.
+ */
 import { prisma } from "@/lib/prisma";
-import { fetchOmdbById } from "@/lib/omdb";
+import { fetchOmdbById, OmdbRateLimitError } from "@/lib/omdb";
 
 const DEFAULT_BATCH_SIZE = 100;
 
+/**
+ * Enriches up to `batchSize` un-enriched titles with ratings from OMDB.
+ * Returns counts of enriched/failed titles and how many remain in the queue.
+ */
 export async function enrichTitles(
   batchSize = DEFAULT_BATCH_SIZE
 ): Promise<{ enriched: number; failed: number; remaining: number }> {
@@ -44,7 +61,8 @@ export async function enrichTitles(
         });
         failed++;
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof OmdbRateLimitError) throw err;
       failed++;
     }
     // Rate limit: ~3 req/sec to be safe

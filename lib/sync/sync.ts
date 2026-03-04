@@ -1,3 +1,21 @@
+/**
+ * Catalog sync orchestrator.
+ *
+ * Implements a step-based sync designed to run within Vercel's 60s function limit.
+ * State is persisted in the SyncState DB singleton between invocations so the
+ * caller can chain steps until { done: true } is returned.
+ *
+ * Sync phases (in order):
+ *   1. "providers" — iterates each streaming provider, fetching PAGES_PER_STEP
+ *      pages per invocation and advancing a cursor until all pages are consumed.
+ *   2. "genres"    — same approach but genre-filtered, to capture long-tail titles
+ *      not surfaced by the unfiltered popular-titles query.
+ *   3. "complete"  — purges titles that were not re-flagged (no longer in catalog),
+ *      finalizes the SyncLog, and removes the SyncState row.
+ *
+ * Provider-pass updates overwrite all flags for that provider.
+ * Genre-pass updates only set flags to true, never false, to preserve provider-pass results.
+ */
 import { prisma } from "@/lib/prisma";
 import { fetchGenres } from "@/lib/justwatch";
 import { fetchProviderPage, fetchGenrePage } from "@/lib/justwatch/fetchTitles";
@@ -204,9 +222,21 @@ export async function runSyncStep(): Promise<{ done: boolean; phase: string }> {
     }
 
     if (state.phase === "complete") {
+      // Remove stale titles that were never re-flagged by this sync (no longer in JustWatch catalog)
+      const { count: deleted } = await prisma.title.deleteMany({
+        where: {
+          onNetflix: false,
+          onPrime: false,
+          onPrimePay: false,
+          onDisney: false,
+          onApple: false,
+          onApplePay: false,
+        },
+      });
+      console.log(`  [sync] purged ${deleted} stale titles no longer in catalog`);
       await prisma.syncLog.update({
         where: { id: state.syncLogId },
-        data: { status: "completed", titlesSynced: state.titlesSynced, completedAt: new Date() },
+        data: { status: "completed", titlesSynced: state.titlesSynced, titlesDeleted: deleted, completedAt: new Date() },
       });
       await prisma.syncState.delete({ where: { id: SYNC_ID } });
       return { done: true, phase: "complete" };

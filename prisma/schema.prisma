@@ -44,12 +44,13 @@ model Title {
 }
 
 model SyncLog {
-  id           String    @id @default(auto()) @map("_id") @db.ObjectId
-  status       String
-  titlesSynced Int       @default(0)
-  error        String?
-  startedAt    DateTime  @default(now())
-  completedAt  DateTime?
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  status         String
+  titlesSynced   Int       @default(0)
+  titlesDeleted  Int?
+  error          String?
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
 }
 
 // Singleton row (id = "singleton") tracking in-progress sync state across chained invocations

@@ -1,3 +1,11 @@
+/**
+ * TMDB (The Movie Database) API client used for the "Similar Titles" feature.
+ *
+ * Requires TMDB_API_KEY env var (free account). Responses are cached for 24h
+ * since recommendations change rarely. All functions return null/[] gracefully
+ * when the key is missing or the API is unavailable, so the feature degrades
+ * silently rather than breaking the page.
+ */
 const TMDB_BASE = "https://api.themoviedb.org/3";
 
 async function tmdbGet(path: string, extra?: Record<string, string>) {
@@ -15,6 +23,7 @@ async function tmdbGet(path: string, extra?: Record<string, string>) {
   }
 }
 
+/** Looks up a TMDB ID and media type ("movie" | "tv") by IMDb ID. Returns null if not found. */
 export async function findTmdbByImdb(
   imdbId: string
 ): Promise<{ tmdbId: number; mediaType: "movie" | "tv" } | null> {
@@ -28,6 +37,11 @@ export async function findTmdbByImdb(
   return null;
 }
 
+/**
+ * Fetches TMDB recommendations for a title and resolves them to IMDb IDs.
+ * Returns up to 20 IMDb IDs (tt-prefixed strings). IDs that cannot be resolved
+ * are filtered out.
+ */
 export async function getRecommendationImdbIds(
   tmdbId: number,
   mediaType: "movie" | "tv"

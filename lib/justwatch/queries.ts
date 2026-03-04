@@ -1,3 +1,10 @@
+/**
+ * GraphQL query strings for the JustWatch API.
+ *
+ * GENRES_QUERY — fetches all available genre shortNames and their English translations.
+ * TITLES_QUERY — paginates popularTitles for given packages (providers) and optional
+ *   genre filter, returning title metadata, poster URL, IMDb ID, and offer details.
+ */
 import config from "./config";
 
 export const GENRES_QUERY = `

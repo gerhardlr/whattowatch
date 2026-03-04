@@ -39,6 +39,7 @@ export interface FilterBarProps {
   availableGenres: string[];
   minRt?: string;
   minImdb?: string;
+  minMetacritic?: string;
   director?: string;
   actor?: string;
   total: number;
@@ -66,6 +67,7 @@ export function FilterBar({
   availableGenres,
   minRt,
   minImdb,
+  minMetacritic,
   director,
   actor,
   total,
@@ -154,6 +156,7 @@ export function FilterBar({
             >
               <MenuItem value="rtScore">Rotten Tomatoes</MenuItem>
               <MenuItem value="imdbRating">IMDb Rating</MenuItem>
+              <MenuItem value="metacritic">Metacritic</MenuItem>
               <MenuItem value="year">Year (newest)</MenuItem>
               <MenuItem value="title">Title (A–Z)</MenuItem>
             </Select>
@@ -298,6 +301,23 @@ export function FilterBar({
               <MenuItem value="7.5">7.5+</MenuItem>
               <MenuItem value="8">8+</MenuItem>
               <MenuItem value="8.5">8.5+</MenuItem>
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid size={{ xs: 6, sm: 4, md: 2 }}>
+          <FormControl fullWidth size="small">
+            <InputLabel>Min Metacritic</InputLabel>
+            <Select
+              value={minMetacritic ?? ""}
+              label="Min Metacritic"
+              onChange={(e) => onParamChange("minMetacritic", e.target.value)}
+            >
+              <MenuItem value="">Any</MenuItem>
+              <MenuItem value="60">60+</MenuItem>
+              <MenuItem value="70">70+</MenuItem>
+              <MenuItem value="75">75+</MenuItem>
+              <MenuItem value="80">80+</MenuItem>
+              <MenuItem value="90">90+</MenuItem>
             </Select>
           </FormControl>
         </Grid>

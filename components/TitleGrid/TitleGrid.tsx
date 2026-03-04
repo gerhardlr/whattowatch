@@ -29,6 +29,7 @@ interface TitleGridProps {
   availableGenres: string[];
   minRt?: string;
   minImdb?: string;
+  minMetacritic?: string;
   director?: string;
   actor?: string;
   genresLocked?: boolean;
@@ -52,6 +53,7 @@ export default function TitleGrid({
   availableGenres,
   minRt,
   minImdb,
+  minMetacritic,
   director,
   actor,
   genresLocked,
@@ -104,6 +106,7 @@ export default function TitleGrid({
         availableGenres={availableGenres}
         minRt={minRt}
         minImdb={minImdb}
+        minMetacritic={minMetacritic}
         director={director}
         actor={actor}
         total={total}

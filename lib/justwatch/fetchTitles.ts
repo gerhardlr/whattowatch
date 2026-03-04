@@ -1,3 +1,23 @@
+/**
+ * JustWatch title-fetching client.
+ *
+ * Implements two sync strategies:
+ *
+ * Full sync (fetchAllTitles) — used by the legacy single-invocation route:
+ *   Pass 1: unfiltered popular titles per provider (one provider at a time).
+ *   Pass 2: genre-filtered pass across all providers to capture long-tail titles.
+ *
+ * Step-based sync (fetchProviderPage / fetchGenrePage) — used by the chained
+ *   step route to stay within Vercel's 60s function timeout per invocation.
+ *   Each function fetches up to `maxPages` pages and returns a cursor so the
+ *   next step can resume where this one left off.
+ *
+ * Titles from duplicate JustWatch nodes are merged via mergeFlags so that a
+ * title appearing under multiple providers accumulates all its service flags.
+ *
+ * Rate-limit handling: JustWatch proxies Elasticsearch 429s as GraphQL errors
+ * with HTTP 200. fetchPage detects these and retries with exponential back-off.
+ */
 import config from "./config";
 import type { JWTitle, JWGenre } from "@/types";
 import { TITLES_QUERY } from "./queries";
@@ -147,6 +167,11 @@ async function fetchProviderPages(
   }
 }
 
+/**
+ * Fetches the complete catalog in a single async call (provider pass + genre pass).
+ * Suitable for scripts and local runs; use fetchProviderPage/fetchGenrePage for
+ * Vercel deployments where execution time is bounded.
+ */
 export async function fetchAllTitles(genres: JWGenre[] = []): Promise<JWTitle[]> {
   const titleMap = new Map<string, JWTitle>();
 

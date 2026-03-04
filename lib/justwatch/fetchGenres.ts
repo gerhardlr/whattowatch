@@ -1,7 +1,13 @@
+/**
+ * Fetches the full list of genres available on JustWatch for the configured
+ * country/language. Used at the start of each sync to drive the genre-filtered
+ * second pass in fetchTitles.
+ */
 import config from "./config";
 import type { JWGenre } from "@/types";
 import { GENRES_QUERY } from "./queries";
 
+/** Fetches all JustWatch genres for ZA, returned as `{ id, name }` pairs. */
 export async function fetchGenres(): Promise<JWGenre[]> {
   const res = await fetch(config.apiUrl, {
     method: "POST",

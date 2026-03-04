@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
   const search = searchParams.get("q");
   const includeRentBuy = searchParams.get("rentbuy") === "1";
+  const minMetacritic = searchParams.get("minMetacritic") ? parseInt(searchParams.get("minMetacritic")!, 10) : undefined;
 
   const where: Prisma.TitleWhereInput = {};
 
@@ -56,9 +57,13 @@ export async function GET(req: NextRequest) {
     where.title = { contains: search, mode: "insensitive" };
   }
 
+  if (minMetacritic) where.metacritic = { gte: minMetacritic };
+
   const orderBy: Prisma.TitleOrderByWithRelationInput =
     sort === "imdbRating"
       ? { imdbRating: "desc" }
+      : sort === "metacritic"
+      ? { metacritic: "desc" }
       : sort === "year"
       ? { year: "desc" }
       : sort === "title"
